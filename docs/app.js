@@ -45,7 +45,10 @@ const GROUP_LABEL = { deer: "deer", moose: "moose", other: "wildlife" };
 const LEVELS = ["Low", "Moderate", "High", "Very high"];
 const LEVEL_COLOR = ["#a7b8ad", "#e3b21f", "#df7718", "#c42f1c"];
 const LEVEL_WEIGHT = [2, 3, 5, 7];
-let RISK_THRESHOLDS = [2, 4, 8];   // x the average road at an average time
+// Each road's level is its risk PER DRIVER (what you face driving it) compared
+// with the average Vermont drive; time of day and month decide when to warn.
+let RISK_THRESHOLDS = [1.5, 2, 3];
+let WARN_NOW = 4;                 // warn when road x month x hour is 4x the average drive
 let GROUP_SHARE = { deer: 0.74, moose: 0.04, other: 0.22 };
 
 // How much riskier this month and time of day are than average, per group.
@@ -56,14 +59,14 @@ function timeFactor(g, month, period) {
   return (s[month] / sMean) * (t[period] / tMean);
 }
 const levelOf = v => RISK_THRESHOLDS.filter(t => v >= t).length;
-// Risk of one road now: its relative risk for each group x that group's timing.
+// One road: its level (where), and its risk right now (road x month x hour).
 function roadRisk(seg, month, period) {
-  let v = 0, top = null, topV = -1;
+  let v = 0, base = 0, top = null, topV = -1;
   for (const g of RISK_GROUPS) {
-    const x = (seg.rel[g] || 0) * timeFactor(g, month, period);
-    v += x; if (x > topV) { topV = x; top = g; }
+    const r = seg.rel[g] || 0, x = r * timeFactor(g, month, period);
+    base += r; v += x; if (x > topV) { topV = x; top = g; }
   }
-  return { v, level: levelOf(v), group: top };
+  return { v, base, level: levelOf(base), group: top };
 }
 
 // Dawn / day / dusk / night from real sunrise and sunset (NOAA approximation).
@@ -324,6 +327,7 @@ async function loadSegments() {
   try {
     const data = await (await fetch("data/risk-roads.json")).json();
     if (data.thresholds) RISK_THRESHOLDS = data.thresholds;
+    if (data.warnNow) WARN_NOW = data.warnNow;
     if (data.share) GROUP_SHARE = data.share;
     S.segments = data.roads.map(([rDeer, rMoose, rOther, ri, lines]) => {
       let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
@@ -557,14 +561,14 @@ function checkWarnings() {
     const dLat = look / 111000, dLon = dLat / Math.cos(p.ll[0] * R);
     for (const seg of S.segments) {
       if (seg.box[2] < p.ll[1] - dLon || seg.box[0] > p.ll[1] + dLon || seg.box[3] < p.ll[0] - dLat || seg.box[1] > p.ll[0] + dLat) continue;
-      const w = roadRisk(seg, month, period); if (w.level < 3) continue;
+      const w = roadRisk(seg, month, period); if (w.level < 2 || w.v < WARN_NOW) continue;
       let near = null;
       for (const line of seg.lines) for (const pt of line) { const d = ahead(pt); if (d != null && (near == null || d < near)) near = d; }
       if (near == null || (best && best.d <= near)) continue;
       best = { key: seg.route, d: near, habitat: true,
-        title: `${LEVELS[w.level]} wildlife risk ahead`,
-        detail: `${seg.route} · ${GROUP_LABEL[w.group]}, ${period}`, dist: fmtDist(near), icon: "!",
-        spoken: `Very high risk for ${GROUP_LABEL[w.group]} ahead on ${seg.route.replace(/^VT-/, "Route ").replace(/^US-/, "U.S. ").replace(/^I-/, "Interstate ")}.` };
+        title: `${LEVELS[w.level]} ${GROUP_LABEL[w.group]} risk ahead`,
+        detail: `${seg.route} · ${Math.round(w.v)}x the average drive at this hour`, dist: fmtDist(near), icon: BY_ID[w.group]?.emoji || "!",
+        spoken: `${LEVELS[w.level]} risk for ${GROUP_LABEL[w.group]} ahead on ${seg.route.replace(/^VT-/, "Route ").replace(/^US-/, "U.S. ").replace(/^I-/, "Interstate ").replace(/^TH-/, "town highway ")}. Slow down.` };
     }
   }
   for (const c of S.community) {
