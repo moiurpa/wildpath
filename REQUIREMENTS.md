@@ -41,7 +41,7 @@ Last checked: 16 Nov 2026, on the live site https://moiurpa.github.io/wildpath/ 
 |---|---|---|
 | Warn me about hotspots ahead while driving | ✅ | Drive mode, spoken and on screen. Tested on a simulated drive on VT 105. |
 | Warning card with distance ("Dead animal reported ahead, 0.3 mi") | ❌ | Current card has no distance. |
-| Season and time of day | 🟡 | Works, but uses estimates until real reports replace them. |
+| Season and time of day | ✅ | Deer and moose: learned from Vermont crashes (deer peak November and June, dusk; moose May–June and September, 7 pm–midnight). Other animals: published patterns until reports arrive. |
 | Works anywhere in the country | 🟡 | Reports and dawn/dusk work anywhere; risky-road data is Vermont only. |
 
 ## Platform
@@ -66,5 +66,5 @@ Last checked: 16 Nov 2026, on the live site https://moiurpa.github.io/wildpath/ 
 | Moderation of reports | ❌ | Only duplicate, GPS and spam checks today. |
 | Data export for partners (CSV / GeoJSON) | ❌ | Should follow the federal standard for wildlife carcass data when FHWA publishes the template. |
 | Dashboard for agencies (hotspots, trends, species) | ❌ | |
-| Real Vermont crash data | ❌ | Request from VTrans and Fish & Wildlife. |
+| Real Vermont crash data | ✅ | 4,346 police-reported wild-animal crashes (2010–2026) from VTrans's public crash data. In the app: 387 crash hotspots, warnings ahead (tested in a simulated drive), and deer/moose timing learned from them. |
 | Sell or license the data | ❌ | Needs real users and data first. |
