@@ -50,6 +50,8 @@ create index if not exists reports_reporter on public.reports (reporter_hash, re
 -- Lock the table: no direct reads or writes from the website's public key.
 alter table public.reports enable row level security;
 revoke all on public.reports from anon, authenticated;
+-- The archive on your computer reads (and, only if asked, trims) with the secret key.
+grant select, update, delete on public.reports to service_role;
 
 -- ---- Helpers ------------------------------------------------------------------
 
