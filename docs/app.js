@@ -23,37 +23,47 @@ const QUICK = ["deer", "raccoon", "skunk", "squirrel", "porcupine", "moose", "tu
 const groupOf = id => (id === "deer" ? "deer" : id === "moose" ? "moose" : "small");
 const PIN_COLOR = { deer: "#f3d9b1", moose: "#e2cdb8", small: "#e5d6f0" };
 
-// ---- Risk model (same as the iPhone app and the Vermont risk map) -----------
-// Starting values; replaced at start-up by data/vermont-patterns.json, learned
-// from Vermont police-reported animal crashes (model/export_app_data.py).
+// ---- Risk model -------------------------------------------------------------
+// Each road's risk comes from model/wildpath_risk.py (data/risk-roads.json): its
+// deer, moose and other-wildlife risk relative to the average Vermont road,
+// learned from traffic, speed limits and 4,000+ police-reported animal crashes.
+// Month and time-of-day factors come from data/vermont-patterns.json (learned
+// from the same crashes); the values below are only fallbacks.
 const SEASON = {
   deer: [0.6, 0.5, 0.5, 0.6, 0.9, 1.0, 0.7, 0.7, 0.9, 1.5, 2.0, 1.2],
   moose: [0.5, 0.4, 0.4, 0.6, 1.6, 1.8, 1.2, 0.9, 1.0, 1.1, 0.9, 0.6],
-  small: Array(12).fill(1),
+  other: Array(12).fill(1),
 };
 const TIME = {
   deer: { dawn: 3, day: 1, dusk: 4, night: 2 },
   moose: { dawn: 3, day: 1, dusk: 3, night: 3 },
-  small: { dawn: 2, day: 1, dusk: 3, night: 3 },
+  other: { dawn: 2, day: 1, dusk: 3, night: 3 },
 };
-const GROUP_LABEL = { deer: "deer", moose: "moose", small: "small animals" };
+const PERIOD_HOURS = { dawn: 2, day: 10, dusk: 2, night: 10 };
+const RISK_GROUPS = ["deer", "moose", "other"];
+const GROUP_LABEL = { deer: "deer", moose: "moose", other: "wildlife" };
 const LEVELS = ["Low", "Moderate", "High", "Very high"];
 const LEVEL_COLOR = ["#a7b8ad", "#e3b21f", "#df7718", "#c42f1c"];
 const LEVEL_WEIGHT = [2, 3, 5, 7];
-const PRIORITY = { deer: 3, moose: 2, small: 1 };
+let RISK_THRESHOLDS = [2, 4, 8];   // x the average road at an average time
+let GROUP_SHARE = { deer: 0.74, moose: 0.04, other: 0.22 };
 
-function riskValue(score, g, month, period) {
-  const base = 0.3 + 0.7 * (score - 5) / 4;
-  return base * SEASON[g][month] / Math.max(...SEASON[g]) * TIME[g][period] / Math.max(...Object.values(TIME[g]));
+// How much riskier this month and time of day are than average, per group.
+function timeFactor(g, month, period) {
+  const s = SEASON[g], t = TIME[g];
+  const sMean = s.reduce((x, y) => x + y, 0) / 12;
+  const tMean = Object.keys(PERIOD_HOURS).reduce((x, p) => x + t[p] * PERIOD_HOURS[p], 0) / 24;
+  return (s[month] / sMean) * (t[period] / tMean);
 }
-const levelOf = v => [0.2, 0.4, 0.7].filter(t => v >= t).length;
-function worst(score, month, period) {
-  let best = null;
-  for (const g of ["deer", "moose", "small"]) {
-    const v = riskValue(score, g, month, period);
-    if (!best || v > best.v || (v === best.v && PRIORITY[g] > PRIORITY[best.g])) best = { v, g };
+const levelOf = v => RISK_THRESHOLDS.filter(t => v >= t).length;
+// Risk of one road now: its relative risk for each group x that group's timing.
+function roadRisk(seg, month, period) {
+  let v = 0, top = null, topV = -1;
+  for (const g of RISK_GROUPS) {
+    const x = (seg.rel[g] || 0) * timeFactor(g, month, period);
+    v += x; if (x > topV) { topV = x; top = g; }
   }
-  return { level: levelOf(best.v), group: best.g };
+  return { v, level: levelOf(v), group: top };
 }
 
 // Dawn / day / dusk / night from real sunrise and sunset (NOAA approximation).
@@ -289,11 +299,12 @@ async function answerStillThere(yes) {
 async function loadVermontData() {
   try {
     const p = await (await fetch("data/vermont-patterns.json")).json();
-    for (const g of ["deer", "moose"]) {
+    for (const g of RISK_GROUPS) {
       if (p.season?.[g]?.length === 12) SEASON[g] = p.season[g];
       if (p.period?.[g]) TIME[g] = p.period[g];
     }
   } catch { /* keep the starting values */ }
+  drawHotspots(); updateRiskChip();
   try {
     const d = await (await fetch("data/crash-hotspots.json")).json();
     S.crashCells = d.cells || [];
@@ -311,8 +322,10 @@ function drawCrashes() {
 
 async function loadSegments() {
   try {
-    const data = await (await fetch("data/hotspot-segments.json")).json();
-    S.segments = data.segments.map(([score, ri, fmm, tmm, lines]) => {
+    const data = await (await fetch("data/risk-roads.json")).json();
+    if (data.thresholds) RISK_THRESHOLDS = data.thresholds;
+    if (data.share) GROUP_SHARE = data.share;
+    S.segments = data.roads.map(([rDeer, rMoose, rOther, ri, lines]) => {
       let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
       const decoded = lines.map(enc => {
         const pts = []; let la = 0, lo = 0;
@@ -324,7 +337,7 @@ async function loadSegments() {
         }
         return pts;
       });
-      return { score, route: data.routes[ri], fmm, tmm, lines: decoded, box: [minLon, minLat, maxLon, maxLat] };
+      return { rel: { deer: rDeer, moose: rMoose, other: rOther }, route: data.routes[ri], lines: decoded, box: [minLon, minLat, maxLon, maxLat] };
     });
   } catch { S.segments = []; }
   drawHotspots();
@@ -346,7 +359,7 @@ function drawHotspots() {
   let drawn = 0;
   for (const seg of S.segments) {
     if (seg.box[2] < b[0] - padX || seg.box[0] > b[2] + padX || seg.box[3] < b[1] - padY || seg.box[1] > b[3] + padY) continue;
-    const { level } = worst(seg.score, month, period);
+    const { level } = roadRisk(seg, month, period);
     if (level < minLevel) continue;
     for (const line of seg.lines) {
       if (line.length < 2) continue;
@@ -358,10 +371,15 @@ function drawHotspots() {
 
 function updateRiskChip() {
   const { month, period } = nowContext();
-  const g = S.pos ? null : null;
-  const top = worst(8, month, period);
+  // How this month and hour compare with an average time, for animals overall.
+  let f = 0, top = "deer", topV = -1;
+  for (const g of RISK_GROUPS) {
+    const x = GROUP_SHARE[g] * timeFactor(g, month, period);
+    f += x; if (x > topV) { topV = x; top = g; }
+  }
+  const level = [1, 2, 4].filter(t => f >= t).length;
   const monthName = new Date().toLocaleString("en-US", { month: "long" });
-  $("risk-status").textContent = `${monthName} ${period}: ${LEVELS[top.level].toLowerCase()} risk for ${GROUP_LABEL[top.group]}`;
+  $("risk-status").textContent = `${monthName} ${period}: ${LEVELS[level].toLowerCase()} risk for ${GROUP_LABEL[top]}`;
 }
 
 // ---- Shared database ----------------------------------------------------------
@@ -539,14 +557,14 @@ function checkWarnings() {
     const dLat = look / 111000, dLon = dLat / Math.cos(p.ll[0] * R);
     for (const seg of S.segments) {
       if (seg.box[2] < p.ll[1] - dLon || seg.box[0] > p.ll[1] + dLon || seg.box[3] < p.ll[0] - dLat || seg.box[1] > p.ll[0] + dLat) continue;
-      const w = worst(seg.score, month, period); if (w.level < 3) continue;
+      const w = roadRisk(seg, month, period); if (w.level < 3) continue;
       let near = null;
       for (const line of seg.lines) for (const pt of line) { const d = ahead(pt); if (d != null && (near == null || d < near)) near = d; }
       if (near == null || (best && best.d <= near)) continue;
       best = { key: seg.route, d: near, habitat: true,
         title: `${LEVELS[w.level]} wildlife risk ahead`,
         detail: `${seg.route} · ${GROUP_LABEL[w.group]}, ${period}`, dist: fmtDist(near), icon: "!",
-        spoken: `Wildlife crossing area ahead on ${seg.route.replace("VT ", "Route ").replace("US ", "U.S. ").replace("I-", "Interstate ")}. Very high risk for ${GROUP_LABEL[w.group]}.` };
+        spoken: `Very high risk for ${GROUP_LABEL[w.group]} ahead on ${seg.route.replace(/^VT-/, "Route ").replace(/^US-/, "U.S. ").replace(/^I-/, "Interstate ")}.` };
     }
   }
   for (const c of S.community) {
