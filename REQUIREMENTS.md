@@ -13,7 +13,7 @@ Last checked: 16 Nov 2026, on the live site https://moiurpa.github.io/wildpath/ 
 | Pin goes where I am | ✅ | Uses phone GPS. |
 | Put the pin somewhere else by tapping the map | ✅ | |
 | All animals, not only deer | ✅ | 20 animals: raccoon, skunk, squirrel, porcupine, opossum and more. |
-| Same animal reported twice counts once | 🟡 | Works in the server (tests pass). Not live, because the server is not online. |
+| Same animal reported twice counts once | ✅ | Tested live on Supabase 16 Nov 2026: second raccoon 11 m away marked duplicate. |
 | Works with no signal, uploads later | 🟡 | Built in the web app; not tested offline. |
 | Add a photo to a report | ❌ | Needed to check reports and to train the camera model. |
 | "Still there?" check by the next driver | ❌ | Lets drivers confirm or clear a report, like Waze. Improves data quality. |
@@ -29,9 +29,9 @@ Last checked: 16 Nov 2026, on the live site https://moiurpa.github.io/wildpath/ 
 |---|---|---|
 | See where I am | ✅ | Blue dot with accuracy circle. |
 | Google Maps as the map | ✅ | Restricted key (Maps JavaScript API, moiurpa.github.io only). Live. |
-| Everyone's reports as pins | 🟡 | Works with the server on one computer. On the live site, each phone sees only its own reports plus demo animals. |
+| Everyone's reports as pins | ✅ | Live on Supabase. A deer reported through the website was saved and shown. Not yet tested with two phones. |
 | Risky roads colored | ✅ | Vermont state highways. |
-| Spots with many reports highlighted | 🟡 | Needs the shared database to be online. |
+| Spots with many reports highlighted | 🟡 | Hotspot function tested live; needs 3+ real reports in one spot to show on the map. |
 | Search a town or address | 🟡 | Built; not tested. |
 | Animal icons on pins (not plain dots) | ❌ | |
 
@@ -49,7 +49,8 @@ Last checked: 16 Nov 2026, on the live site https://moiurpa.github.io/wildpath/ 
 | Requirement | Status | Notes |
 |---|---|---|
 | Website online at a permanent address | ✅ | https://moiurpa.github.io/wildpath/ |
-| Shared database of reports online | ❌ | Server built (22 tests pass) but not hosted. Options: Oracle free server, Firestore, Supabase. |
+| Shared database of reports online | ✅ | Supabase project wildpath (free, org WildPath). Table locked; the site can only call submit_reports, reports_in_bbox, hotspots_in_bbox. Bad GPS rejected (tested). |
+| Permanent archive on the home computer | ✅ | Every hour this Mac copies new reports to ~/WildPath Archive (launchd job com.wildpath.archive). Never deletes from Supabase unless run with --trim-days. |
 | Install on the phone home screen, works offline (PWA) | 🟡 | Live: app icon, manifest and offline support load in Chrome. Not yet installed on a real phone. |
 | Phone app | 🟡 | Website works in a phone browser. Native iPhone app written, not built. |
 | Turn-by-turn directions | 🟡 | iPhone app hands off to Google Maps; not in the website. |

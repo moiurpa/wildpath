@@ -31,7 +31,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wildpath_server.sun import period_at  # noqa: E402
 
 SETTINGS = Path.home() / ".wildpath" / "archive.json"
-DEFAULT_DB = Path.home() / "Documents" / "WildPath Archive" / "wildpath-archive.db"
+# In the home folder, not Documents or Desktop: macOS blocks scheduled jobs from those.
+DEFAULT_DB = Path.home() / "WildPath Archive" / "wildpath-archive.db"
 PAGE = 1000
 
 COLUMNS = ["id", "reporter_hash", "species", "lat", "lon", "accuracy_m", "speed_mps", "course_deg",
