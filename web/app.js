@@ -21,7 +21,7 @@ const SPECIES = [
 const BY_ID = Object.fromEntries(SPECIES.map(s => [s.id, s]));
 const QUICK = ["deer", "raccoon", "skunk", "squirrel", "porcupine", "moose", "turtle", "unknown"];
 const groupOf = id => (id === "deer" ? "deer" : id === "moose" ? "moose" : "small");
-const PIN_COLOR = { deer: "#8a5a2b", moose: "#3b2a20", small: "#7b3fa0" };
+const PIN_COLOR = { deer: "#f3d9b1", moose: "#e2cdb8", small: "#e5d6f0" };
 
 // ---- Risk model (same as the iPhone app and the Vermont risk map) -----------
 const SEASON = {
@@ -115,8 +115,10 @@ function leafletMap(el) {
       const l = L.polyline(coords, { renderer, color: s.color, weight: s.weight, opacity: s.opacity ?? 0.9, interactive: false }).addTo(map);
       return { remove: () => l.remove() };
     },
-    marker(ll, { color, size = 8, popup, stroke = "#fff" }) {
-      const m = L.circleMarker(ll, { radius: size, color: stroke, weight: 2, fillColor: color, fillOpacity: 1 }).addTo(map);
+    marker(ll, { color, size = 8, popup, stroke = "#fff", emoji }) {
+      const m = emoji
+        ? L.marker(ll, { icon: L.divIcon({ className: "", html: `<div class="pin" style="background:${color}">${emoji}</div>`, iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] }) }).addTo(map)
+        : L.circleMarker(ll, { radius: size, color: stroke, weight: 2, fillColor: color, fillOpacity: 1 }).addTo(map);
       if (popup) m.bindPopup(popup);
       return { remove: () => m.remove(), setLatLng: x => m.setLatLng(x), open: () => m.openPopup() };
     },
@@ -151,10 +153,11 @@ function googleMap(el) {
       const p = new google.maps.Polyline({ path: coords.map(toLL), strokeColor: s.color, strokeWeight: s.weight, strokeOpacity: s.opacity ?? 0.9, clickable: false, map });
       return { remove: () => p.setMap(null) };
     },
-    marker(ll, { color, size = 8, popup, stroke = "#fff" }) {
+    marker(ll, { color, size = 8, popup, stroke = "#fff", emoji }) {
       const m = new google.maps.Marker({
         position: toLL(ll), map,
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: size, fillColor: color, fillOpacity: 1, strokeColor: stroke, strokeWeight: 2 },
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: emoji ? 15 : size, fillColor: color, fillOpacity: 1, strokeColor: stroke, strokeWeight: 2 },
+        label: emoji ? { text: emoji, fontSize: "16px" } : undefined,
       });
       const open = () => { info.setContent(popup); info.open({ anchor: m, map }); };
       if (popup) m.addListener("click", open);
@@ -198,7 +201,7 @@ const S = {
   me: null, meAccuracy: null, hotspotLines: [], segments: [], pins: new Map(), community: [], communityShapes: [],
   pickSpecies: null, pickNext: false, voice: store.get("wp.voice", true),
   layers: { hotspots: true, reports: true }, lastWarnKey: null, lastWarnAt: 0, lastWarnPos: null, lastHabitatWarnAt: 0,
-  wakeLock: null,
+  wakeLock: null, asked: new Set(store.get("wp.asked", [])), stillFor: null,
 };
 
 // ---- Toast, voice -------------------------------------------------------------
@@ -247,7 +250,36 @@ function onPosition(p) {
   if (!S.centeredOnce) { S.centeredOnce = true; S.map.setView(ll, 15); }
   else if (S.follow && S.driving) S.map.setView(ll, Math.max(S.map.zoom(), 15));
   updateRiskChip();
-  if (S.driving) checkWarnings();
+  if (S.driving) { checkWarnings(); checkStillThere(); }
+}
+
+// ---- "Still there?" -------------------------------------------------------------
+// When you drive past a reported animal (within 60 m), ask once whether it's still there.
+let stillTimer;
+function checkStillThere() {
+  const p = S.pos; if (!p || p.acc > 40 || !$("still").hidden) return;
+  for (const [id, pin] of S.pins) {
+    if (pin.mine || id.startsWith("demo-") || S.asked.has(id)) continue;
+    if (meters(p.ll, pin.ll) > 60) continue;
+    S.asked.add(id); store.set("wp.asked", [...S.asked].slice(-500));
+    const sp = BY_ID[pin.props.species] || BY_ID.unknown;
+    S.stillFor = id;
+    $("still-icon").textContent = sp.emoji;
+    $("still-title").textContent = sp.id === "unknown" ? "Animal reported here" : `${sp.name} reported here`;
+    $("still").hidden = false;
+    say(`${sp.id === "unknown" ? "Animal" : sp.name} reported here. Still there?`);
+    clearTimeout(stillTimer); stillTimer = setTimeout(() => ($("still").hidden = true), 15000);
+    return;
+  }
+}
+
+async function answerStillThere(yes) {
+  const id = S.stillFor; $("still").hidden = true; clearTimeout(stillTimer); if (!id) return;
+  try {
+    const r = await api.confirm(id, yes);
+    if (r && r.cleared) { const pin = S.pins.get(id); if (pin) { pin.handle.remove(); S.pins.delete(id); } }
+    toast(yes ? "Thanks. Other drivers will be warned." : "Thanks. We'll clear it once others agree.");
+  } catch { toast("Thanks. Couldn't send that right now."); }
 }
 
 // ---- Risky roads ------------------------------------------------------------
@@ -335,6 +367,10 @@ const api = {
     if (!res.ok) throw new Error(`server ${res.status}`);
     return res.json();
   },
+  async confirm(reportId, stillThere) {
+    if (!SB) return null;
+    return sbRpc("confirm_report", { reporter_id: reporterId(), report_id: reportId, still_there: stillThere });
+  },
   async hotspots(bbox, minCount) {
     if (SB) return sbRpc("hotspots_in_bbox", { ...bboxArgs(bbox), min_count: minCount });
     const res = await fetch(`v1/hotspots?bbox=${bbox}&min_count=${minCount}`);
@@ -389,7 +425,7 @@ async function enterDemoMode() {
 function addPin(id, ll, props, mine = false) {
   const sp = BY_ID[props.species] || BY_ID.unknown;
   const popup = `<div class="pop-title">${sp.emoji} ${esc(sp.name)}</div><div>Reported ${esc(ago(props.observedAt))}${props.period ? " · " + esc(props.period) : ""}</div>${mine ? "<div><b>Your report</b></div>" : ""}`;
-  const handle = S.layers.reports ? S.map.marker(ll, { color: PIN_COLOR[groupOf(sp.id)], size: 7, popup }) : { remove() {} };
+  const handle = S.layers.reports ? S.map.marker(ll, { color: PIN_COLOR[groupOf(sp.id)], size: 7, popup, emoji: sp.emoji }) : { remove() {} };
   S.pins.set(id, { handle, ll, props, mine });
   return handle;
 }
@@ -483,7 +519,7 @@ function checkWarnings() {
       if (near == null || (best && best.d <= near)) continue;
       best = { key: seg.route, d: near, habitat: true,
         title: `${LEVELS[w.level]} wildlife risk ahead`,
-        detail: `${seg.route}, ${(near / 1609.344).toFixed(1)} mi ahead · ${GROUP_LABEL[w.group]}, ${period}`,
+        detail: `${seg.route} · ${GROUP_LABEL[w.group]}, ${period}`, dist: fmtDist(near), icon: "!",
         spoken: `Wildlife crossing area ahead on ${seg.route.replace("VT ", "Route ").replace("US ", "U.S. ").replace("I-", "Interstate ")}. Very high risk for ${GROUP_LABEL[w.group]}.` };
     }
   }
@@ -492,9 +528,19 @@ function checkWarnings() {
     const top = Object.keys(c.species)[0];
     best = { key: "c" + c.cell, d, habitat: false,
       title: `${c.count} animals reported ahead`,
-      detail: `Mostly ${(BY_ID[top]?.name || "animals").toLowerCase()} · ${(d / 1609.344).toFixed(1)} mi ahead`,
+      detail: `Mostly ${(BY_ID[top]?.name || "animals").toLowerCase()}`, dist: fmtDist(d), icon: BY_ID[top]?.emoji || "!",
       spoken: `Caution. Drivers have reported ${c.count} animals on the road ahead.` };
     break;
+  }
+  // A single animal reported in the last 3 days, ahead on this road.
+  for (const [id, pin] of S.pins) {
+    if (pin.mine || id.startsWith("demo-") || now - Date.parse(pin.props.observedAt) > 3 * 864e5) continue;
+    const d = ahead(pin.ll); if (d == null || (best && !best.habitat && best.d <= d)) continue;
+    const sp = BY_ID[pin.props.species] || BY_ID.unknown;
+    const name = sp.id === "unknown" ? "Dead animal" : sp.name;
+    best = { key: "p" + id, d, habitat: false, icon: sp.emoji, dist: fmtDist(d),
+      title: `${name} reported ahead`, detail: `Reported ${ago(pin.props.observedAt)} · slow down`,
+      spoken: `${name} reported on the road ahead, ${fmtDist(d, true)}.` };
   }
   if (!best) return;
   const sameRoad = best.key === S.lastWarnKey && now - S.lastWarnAt < 600000 && S.lastWarnPos && meters(S.lastWarnPos, p.ll) < 3000;
@@ -505,9 +551,17 @@ function checkWarnings() {
 }
 
 let warnTimer;
+function fmtDist(m, spoken = false) {
+  const mi = m / 1609.344;
+  if (mi < 0.1) { const ft = Math.max(50, Math.round(m * 3.281 / 50) * 50); return spoken ? `in ${ft} feet` : `${ft} ft`; }
+  return spoken ? `in ${mi.toFixed(1)} miles` : `${mi.toFixed(1)} mi`;
+}
+
 function showWarning(w) {
   $("warning-title").textContent = w.title;
   $("warning-detail").textContent = w.detail;
+  $("warning-dist").textContent = w.dist || "";
+  $("warning-icon").textContent = w.icon || "!";
   $("warning").hidden = false;
   say(w.spoken);
   clearTimeout(warnTimer); warnTimer = setTimeout(() => ($("warning").hidden = true), 12000);
@@ -562,6 +616,8 @@ async function start() {
   buildSheet();
   $("btn-report").addEventListener("click", openAddReport);
   $("btn-report-side").addEventListener("click", openAddReport);
+  $("still-yes").addEventListener("click", () => answerStillThere(true));
+  $("still-no").addEventListener("click", () => answerStillThere(false));
   $("report-dead-animal").addEventListener("click", () => { $("add-report-sheet").close(); openReportSheet(); });
   $("pick-cancel").addEventListener("click", () => { S.pickSpecies = null; $("pick-banner").hidden = true; });
   $("btn-locate").addEventListener("click", () => {

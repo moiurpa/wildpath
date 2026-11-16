@@ -75,8 +75,36 @@ body { background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font); }
   font-weight: 900; color: #111;
 }
 .warning-sign::after { content: ""; }
-.warning-title { font-weight: 800; }
+.warning-sign span { transform: rotate(-45deg); font-size: 1.05rem; }
+.warning-body { flex: 1; min-width: 0; }
+.warning-title { font-weight: 800; font-size: 1.05rem; }
 .warning-detail { color: var(--muted); font-size: 0.88rem; }
+.warning-dist { flex: none; font-weight: 800; font-size: 1.35rem; white-space: nowrap; }
+.warning-dist:empty { display: none; }
+
+/* Animal pins */
+.pin {
+  width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; display: grid; place-items: center;
+  font-size: 16px; line-height: 1; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* "Still there?" card */
+.still {
+  position: absolute; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 88px); z-index: 1100;
+  margin: 0 auto; max-width: 520px; display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border-radius: 22px; padding: 12px; box-shadow: var(--shadow);
+}
+#app.driving .still { bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); }
+.still-icon { width: 48px; height: 48px; flex: none; border-radius: 50%; background: var(--accent); display: grid; place-items: center; font-size: 1.5rem; }
+.still-text { flex: 1; display: grid; line-height: 1.25; }
+.still-text span { color: var(--muted); }
+.still-btn { min-width: 76px; min-height: 52px; border: 0; border-radius: 16px; font: 700 1rem var(--font); cursor: pointer; }
+.still-btn.yes { background: var(--accent); color: var(--on-accent); }
+.still-btn.no { background: var(--tile); color: var(--fg); }
+
+.legal-links { margin: 6px 0 0; font-size: 0.85rem; }
+.legal-links a, .sheet-legal a { color: inherit; }
+.sheet-legal { margin: 0 4px; font-size: 0.8rem; color: var(--muted); text-align: center; }
 
 .pick-banner {
   position: absolute; top: calc(env(safe-area-inset-top, 0px) + 92px); left: 12px; right: 12px; z-index: 1100;

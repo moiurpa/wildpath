@@ -37,12 +37,15 @@ PAGE = 1000
 
 COLUMNS = ["id", "reporter_hash", "species", "lat", "lon", "accuracy_m", "speed_mps", "course_deg",
            "observed_at", "received_at", "source", "confidence", "status", "duplicate_of",
-           "month", "period", "cell", "app_version"]
+           "month", "period", "cell", "app_version", "still_there_votes", "gone_votes", "cleared_at"]
+# Values that can change after a report arrives ("Still there?" answers, camera confirmations).
+CHANGING = ["status", "still_there_votes", "gone_votes", "cleared_at"]
+NUMERIC = ("lat", "lon", "accuracy_m", "speed_mps", "course_deg", "confidence", "month",
+           "still_there_votes", "gone_votes")
 
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS reports (
-    {", ".join(c + " TEXT" if c not in ("lat", "lon", "accuracy_m", "speed_mps", "course_deg", "confidence", "month")
-               else c + " REAL" for c in COLUMNS)},
+    {", ".join(c + (" REAL" if c in NUMERIC else " TEXT") for c in COLUMNS)},
     period_sun  TEXT,      -- dawn/day/dusk/night worked out here from real sunrise and sunset
     archived_at TEXT NOT NULL,
     PRIMARY KEY (id)
@@ -104,6 +107,10 @@ def open_archive(path):
     db = sqlite3.connect(path)
     db.row_factory = sqlite3.Row
     db.executescript(SCHEMA)
+    have = {r["name"] for r in db.execute("PRAGMA table_info(reports)")}
+    for c in COLUMNS:  # archives made before a column existed
+        if c not in have:
+            db.execute(f"ALTER TABLE reports ADD COLUMN {c} {'REAL' if c in NUMERIC else 'TEXT'}")
     return db
 
 
@@ -121,11 +128,8 @@ def copy_new(db, sb):
     stamp = now_iso()
     for row in sb.reports_since(last):
         values = [row.get(c) for c in COLUMNS]
-        exists = db.execute("SELECT status FROM reports WHERE id = ?", (row["id"],)).fetchone()
-        if exists:
-            if exists["status"] != row["status"]:
-                db.execute("UPDATE reports SET status = ? WHERE id = ?", (row["status"], row["id"]))
-                updated += 1
+        if db.execute("SELECT 1 FROM reports WHERE id = ?", (row["id"],)).fetchone():
+            updated += update_changing(db, row)
             continue
         db.execute(f"INSERT INTO reports ({', '.join(COLUMNS)}, period_sun, archived_at) "
                    f"VALUES ({', '.join('?' * (len(COLUMNS) + 2))})", values + [sun_period(row), stamp])
@@ -134,14 +138,18 @@ def copy_new(db, sb):
     return copied, updated
 
 
-def refresh_statuses(db, sb, days=7):
-    """Camera reports can turn 'confirmed' later; pick that up for recent reports."""
+def update_changing(db, row):
+    """Copy values that can change later (status, "Still there?" votes, cleared)."""
+    sets = " OR ".join(f"{c} IS NOT ?" for c in CHANGING)
+    cur = db.execute(f"UPDATE reports SET {', '.join(c + ' = ?' for c in CHANGING)} WHERE id = ? AND ({sets})",
+                     [row.get(c) for c in CHANGING] + [row["id"]] + [row.get(c) for c in CHANGING])
+    return cur.rowcount
+
+
+def refresh_statuses(db, sb, days=14):
+    """Pick up later changes (confirmations, "Still there?" answers) for recent reports."""
     since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    updated = 0
-    for row in sb.reports_since(since):
-        cur = db.execute("UPDATE reports SET status = ? WHERE id = ? AND status != ?",
-                         (row["status"], row["id"], row["status"]))
-        updated += cur.rowcount
+    updated = sum(update_changing(db, row) for row in sb.reports_since(since))
     db.commit()
     return updated
 
