@@ -1,7 +1,7 @@
 // WildPath service worker: lets the app open with no signal.
 // Network first, so updates show right away; the saved copy is used only when offline.
 // Only this site's own files are saved. Google Maps and report uploads are never cached.
-const CACHE = "wildpath-v2";
+const CACHE = "wildpath-v3";
 const CORE = ["./", "index.html", "app.css", "app.js", "config.js", "vendor/leaflet.js", "vendor/leaflet.css",
   "data/hotspot-segments.json", "data/demo-reports.json", "manifest.json", "icons/icon-192.png", "privacy.html", "terms.html", "legal.css"];
 

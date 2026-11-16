@@ -567,12 +567,48 @@ function showWarning(w) {
   clearTimeout(warnTimer); warnTimer = setTimeout(() => ($("warning").hidden = true), 12000);
 }
 
+// ---- Weather: frogs and salamanders on wet nights --------------------------------
+// Spring "Big Nights" (Mar-May, after dark, 40 F or warmer, rain) and summer/fall
+// wet nights (Jun-Oct, after dark, rain, 50 F or warmer in summer). Same rules as
+// model/wildpath_risk.py. Weather from Open-Meteo (free, no key); the location
+// sent is rounded to about 1 km, and only while drive mode is on.
+function amphibianWeather(month, tempC, rain3h, dark) {
+  if (tempC == null || !dark) return null;
+  const wet = rain3h >= 0.5;
+  if (month >= 3 && month <= 5) return tempC < 4.4 ? null : wet ? "big_night" : null;
+  const minT = { 6: 10, 7: 10, 8: 10, 9: 4.4, 10: 4.4 }[month];
+  return minT != null && wet && tempC >= minT ? "wet_night" : null;
+}
+
+async function checkWeather() {
+  const p = S.pos; if (!p || !S.driving) return;
+  try {
+    const [lat, lon] = p.ll.map(v => v.toFixed(2));
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      "&current=temperature_2m,is_day&hourly=precipitation&past_hours=3&forecast_hours=1&timezone=UTC");
+    if (!res.ok) return;
+    const d = await res.json();
+    const rain = (d.hourly?.precipitation || []).slice(0, 3).reduce((s, v) => s + (v || 0), 0);
+    const kind = amphibianWeather(new Date().getMonth() + 1, d.current?.temperature_2m, rain, d.current?.is_day === 0);
+    S.weather = { tempC: d.current?.temperature_2m, rain, kind };
+    if (!kind) return;
+    const tonight = new Date().toDateString();
+    if (store.get("wp.frogWarned", "") === tonight) return;
+    store.set("wp.frogWarned", tonight);
+    showWarning({ icon: "🐸", dist: "",
+      title: kind === "big_night" ? "Big Night: frogs and salamanders crossing" : "Rainy night: frogs on the road",
+      detail: "Warm and wet after dark · slow down near ponds, wetlands and streams",
+      spoken: "Rainy night. Frogs and salamanders may be on the road. Please slow down near wetlands." });
+  } catch { /* no weather right now */ }
+}
+
 async function setDriving(on) {
   S.driving = on; S.follow = true;
   $("btn-drive").setAttribute("aria-pressed", on);
   $("app").classList.toggle("driving", on);
   if (on) {
     toast("Drive mode on. I'll warn you about wildlife ahead.");
+    setTimeout(checkWeather, 5000);
     say("Drive mode on.");
     if (S.pos) S.map.setView(S.pos.ll, 16);
     try { S.wakeLock = await navigator.wakeLock?.request("screen"); } catch { /* not allowed */ }
@@ -645,6 +681,7 @@ async function start() {
   loadReports();
   flushPending();
   setInterval(loadReports, 30000);
+  setInterval(checkWeather, 30 * 60000);
   setInterval(flushPending, 60000);
   setInterval(updateRiskChip, 60000);
   addEventListener("online", flushPending);
