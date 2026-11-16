@@ -136,8 +136,8 @@ begin
     src := r->>'source';
     sp  := coalesce(r->>'species', 'unknown');
     if sp not in ('deer','moose','bear','raccoon','skunk','squirrel','porcupine','opossum','woodchuck',
-                  'rabbit','chipmunk','fox','coyote','turtle','frog','salamander','snake','bird',
-                  'catOrDog','unknown') then
+                  'rabbit','chipmunk','fox','coyote','bobcat','fisher','beaver','otter','turtle','frog',
+                  'salamander','snake','turkey','bird','catOrDog','unknown') then
       sp := 'unknown';
     end if;
     per := r->>'period';

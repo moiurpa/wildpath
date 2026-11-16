@@ -11,15 +11,17 @@ const SPECIES = [
   ["deer", "Deer", "🦌", "Large animals"], ["moose", "Moose", "🫎", "Large animals"], ["bear", "Bear", "🐻", "Large animals"],
   ["raccoon", "Raccoon", "🦝", "Small and medium mammals"], ["skunk", "Skunk", "🦨", "Small and medium mammals"],
   ["squirrel", "Squirrel", "🐿️", "Small and medium mammals"], ["porcupine", "Porcupine", "🦔", "Small and medium mammals"],
-  ["opossum", "Opossum", "🐀", "Small and medium mammals"], ["woodchuck", "Woodchuck", "🦫", "Small and medium mammals"],
+  ["opossum", "Opossum", "🐀", "Small and medium mammals"], ["woodchuck", "Woodchuck", "🐹", "Small and medium mammals"],
   ["rabbit", "Rabbit", "🐇", "Small and medium mammals"], ["chipmunk", "Chipmunk", "🐿️", "Small and medium mammals"],
   ["fox", "Fox", "🦊", "Small and medium mammals"], ["coyote", "Coyote", "🐺", "Small and medium mammals"],
+  ["bobcat", "Bobcat", "🐆", "Small and medium mammals"], ["fisher", "Fisher", "🦡", "Small and medium mammals"],
+  ["beaver", "Beaver", "🦫", "Small and medium mammals"], ["otter", "Otter or mink", "🦦", "Small and medium mammals"],
   ["turtle", "Turtle", "🐢", "Turtles, frogs and snakes"], ["frog", "Frog or toad", "🐸", "Turtles, frogs and snakes"],
   ["salamander", "Salamander", "🦎", "Turtles, frogs and snakes"], ["snake", "Snake", "🐍", "Turtles, frogs and snakes"],
-  ["bird", "Bird", "🐦", "Birds"], ["catOrDog", "Cat or dog", "🐈", "Pets"], ["unknown", "Not sure", "❓", "Not sure"],
+  ["turkey", "Wild turkey", "🦃", "Birds"], ["bird", "Other bird", "🐦", "Birds"], ["catOrDog", "Cat or dog", "🐈", "Pets"], ["unknown", "Not sure", "❓", "Not sure"],
 ].map(([id, name, emoji, group]) => ({ id, name, emoji, group }));
 const BY_ID = Object.fromEntries(SPECIES.map(s => [s.id, s]));
-const QUICK = ["deer", "raccoon", "skunk", "squirrel", "porcupine", "moose", "turtle", "unknown"];
+const QUICK = ["deer", "moose", "raccoon", "skunk", "fox", "coyote", "porcupine", "squirrel", "turtle", "unknown"];
 const groupOf = id => (id === "deer" ? "deer" : id === "moose" ? "moose" : "small");
 const PIN_COLOR = { deer: "#f3d9b1", moose: "#e2cdb8", small: "#e5d6f0" };
 

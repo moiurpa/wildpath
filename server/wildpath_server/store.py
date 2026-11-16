@@ -15,9 +15,9 @@ from .sun import period_at
 SPECIES = {
     "deer", "moose", "bear",
     "raccoon", "skunk", "squirrel", "porcupine", "opossum", "woodchuck",
-    "rabbit", "chipmunk", "fox", "coyote",
+    "rabbit", "chipmunk", "fox", "coyote", "bobcat", "fisher", "beaver", "otter",
     "turtle", "frog", "salamander", "snake",
-    "bird", "catOrDog", "unknown",
+    "turkey", "bird", "catOrDog", "unknown",
 }
 SOURCES = {"carplay", "phone", "siri", "camera", "web"}
 
