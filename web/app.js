@@ -24,6 +24,8 @@ const groupOf = id => (id === "deer" ? "deer" : id === "moose" ? "moose" : "smal
 const PIN_COLOR = { deer: "#f3d9b1", moose: "#e2cdb8", small: "#e5d6f0" };
 
 // ---- Risk model (same as the iPhone app and the Vermont risk map) -----------
+// Starting values; replaced at start-up by data/vermont-patterns.json, learned
+// from Vermont police-reported animal crashes (model/export_app_data.py).
 const SEASON = {
   deer: [0.6, 0.5, 0.5, 0.6, 0.9, 1.0, 0.7, 0.7, 0.9, 1.5, 2.0, 1.2],
   moose: [0.5, 0.4, 0.4, 0.6, 1.6, 1.8, 1.2, 0.9, 1.0, 1.1, 0.9, 0.6],
@@ -199,8 +201,8 @@ function reporterId() {
 const S = {
   map: null, pos: null, prevPos: null, follow: true, driving: false, centeredOnce: false,
   me: null, meAccuracy: null, hotspotLines: [], segments: [], pins: new Map(), community: [], communityShapes: [],
-  pickSpecies: null, pickNext: false, voice: store.get("wp.voice", true),
-  layers: { hotspots: true, reports: true }, lastWarnKey: null, lastWarnAt: 0, lastWarnPos: null, lastHabitatWarnAt: 0,
+  pickSpecies: null, pickNext: false, voice: store.get("wp.voice", true), crashCells: [], crashShapes: [], crashInfo: null,
+  layers: { hotspots: true, reports: true, crashes: true }, lastWarnKey: null, lastWarnAt: 0, lastWarnPos: null, lastHabitatWarnAt: 0,
   wakeLock: null, asked: new Set(store.get("wp.asked", [])), stillFor: null,
 };
 
@@ -283,6 +285,30 @@ async function answerStillThere(yes) {
 }
 
 // ---- Risky roads ------------------------------------------------------------
+// ---- Real Vermont data: crash history and learned timing -----------------------------
+async function loadVermontData() {
+  try {
+    const p = await (await fetch("data/vermont-patterns.json")).json();
+    for (const g of ["deer", "moose"]) {
+      if (p.season?.[g]?.length === 12) SEASON[g] = p.season[g];
+      if (p.period?.[g]) TIME[g] = p.period[g];
+    }
+  } catch { /* keep the starting values */ }
+  try {
+    const d = await (await fetch("data/crash-hotspots.json")).json();
+    S.crashCells = d.cells || [];
+    S.crashInfo = { from: d.from?.slice(0, 4), to: d.to?.slice(0, 4), total: d.totalCrashes };
+    drawCrashes();
+  } catch { /* no crash data */ }
+}
+
+function drawCrashes() {
+  S.crashShapes.forEach(s => s.remove()); S.crashShapes = [];
+  if (!S.layers.crashes) return;
+  S.crashShapes = S.crashCells.map(c => S.map.circle(c.center, Math.min(450, 180 + 20 * c.count),
+    { color: "#9a4a00", fillOpacity: Math.min(0.35, 0.08 + 0.02 * c.count), strokeOpacity: 0.6 }));
+}
+
 async function loadSegments() {
   try {
     const data = await (await fetch("data/hotspot-segments.json")).json();
@@ -532,6 +558,16 @@ function checkWarnings() {
       spoken: `Caution. Drivers have reported ${c.count} animals on the road ahead.` };
     break;
   }
+  // Places with a history of police-reported animal crashes.
+  for (const c of S.crashCells) {
+    const d = ahead(c.center); if (d == null || (best && !best.habitat && best.d <= d)) continue;
+    const top = Object.keys(c.species)[0];
+    const name = top === "deer" ? "deer" : top === "moose" ? "moose" : "animal";
+    best = { key: "x" + c.cell, d, habitat: false, icon: BY_ID[top]?.emoji || "!", dist: fmtDist(d),
+      title: `${c.count} ${name} crashes here since ${c.years?.[0] || 2010}`,
+      detail: `Police reports · mostly ${c.darkShare >= 0.6 ? "after dark" : "in daylight"}`,
+      spoken: `Caution. ${c.count} ${name} crashes have happened on the road ahead.` };
+  }
   // A single animal reported in the last 3 days, ahead on this road.
   for (const [id, pin] of S.pins) {
     if (pin.mine || id.startsWith("demo-") || now - Date.parse(pin.props.observedAt) > 3 * 864e5) continue;
@@ -689,6 +725,7 @@ async function start() {
     S.communityShapes.forEach(s => s.remove()); S.communityShapes = [];
     loadReports();
   });
+  $("layer-crashes").addEventListener("change", e => { S.layers.crashes = e.target.checked; drawCrashes(); });
   $("layer-voice").checked = S.voice;
   $("layer-voice").addEventListener("change", e => { S.voice = e.target.checked; store.set("wp.voice", S.voice); });
   $("search").addEventListener("submit", e => { e.preventDefault(); const q = $("search-input").value.trim(); if (q) search(q); });
@@ -696,6 +733,7 @@ async function start() {
   updateRiskChip();
   startLocation();
   await loadSegments();
+  loadVermontData();
   loadReports();
   flushPending();
   setInterval(loadReports, 30000);

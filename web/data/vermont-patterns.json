@@ -1,0 +1,48 @@
+{
+ "source": "Learned from Vermont police-reported animal crashes 2010-2026, blended with published patterns (model/wildpath_risk.py)",
+ "generatedAt": "2026-11-16",
+ "season": {
+  "deer": [
+   0.834,
+   0.461,
+   0.561,
+   0.447,
+   0.783,
+   1.459,
+   1.048,
+   0.539,
+   0.677,
+   1.324,
+   2.509,
+   1.359
+  ],
+  "moose": [
+   0.441,
+   0.105,
+   0.358,
+   1.005,
+   2.056,
+   2.034,
+   1.507,
+   0.95,
+   1.542,
+   1.05,
+   0.601,
+   0.349
+  ]
+ },
+ "period": {
+  "deer": {
+   "dawn": 1.26,
+   "day": 0.494,
+   "dusk": 2.48,
+   "night": 1.158
+  },
+  "moose": {
+   "dawn": 0.849,
+   "day": 0.201,
+   "dusk": 2.121,
+   "night": 1.605
+  }
+ }
+}
