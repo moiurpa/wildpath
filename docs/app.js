@@ -566,3 +566,8 @@ async function start() {
 }
 
 start();
+
+// Let the app be installed on the phone and open with no signal.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
