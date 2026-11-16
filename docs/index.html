@@ -49,6 +49,9 @@
     <button type="button" id="btn-layers" class="round-btn" aria-label="Map layers" title="Map layers" aria-expanded="false">
       <svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="m2 13 10 5 10-5" fill="none" stroke-width="2"/></svg>
     </button>
+    <button type="button" id="btn-report-side" class="round-btn report-side" aria-label="Add a report" title="Add a report">
+      <svg viewBox="0 0 24 24"><path d="M12 3 22.5 20.5H1.5Z" fill="none" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 9.5v5.5M9.2 12.25h5.6" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>
+    </button>
     <button type="button" id="btn-drive" class="round-btn" aria-pressed="false" aria-label="Drive mode" title="Drive mode">
       <svg viewBox="0 0 24 24"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11v6h-2v2h-2v-2H9v2H7v-2H5v-6Zm2.2-1h9.6l-1-3H8.2l-1 3ZM7.5 15a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>
     </button>
@@ -71,10 +74,22 @@
   </div>
 </div>
 
+<dialog id="add-report-sheet" class="sheet" aria-labelledby="add-title">
+  <form method="dialog" class="sheet-inner">
+    <div class="sheet-head">
+      <h2 id="add-title">Add a report</h2>
+      <button value="cancel" class="close-x" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
+    </div>
+    <div class="quick-grid">
+      <button type="button" class="animal-btn" id="report-dead-animal"><span class="dot" aria-hidden="true">🦌</span><span>Dead animal</span></button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="report-sheet" class="sheet" aria-labelledby="sheet-title">
   <form method="dialog" class="sheet-inner">
     <div class="sheet-head">
-      <h2 id="sheet-title">Report a dead animal</h2>
+      <h2 id="sheet-title">Which animal?</h2>
       <button value="cancel" class="close-x" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
     </div>
     <p id="sheet-where" class="sheet-where"></p>

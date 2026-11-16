@@ -373,6 +373,10 @@ function buildSheet() {
   $("pick-on-map").addEventListener("click", () => { S.pickNext = true; $("sheet-where").textContent = "Pick the animal, then tap the map where it is."; });
 }
 
+function openAddReport() {
+  $("add-report-sheet").showModal();
+}
+
 function openReportSheet() {
   S.pickNext = false;
   const fresh = S.pos && Date.now() - S.pos.t < 30000 && S.pos.acc <= 100;
@@ -483,6 +487,7 @@ function showWarning(w) {
 async function setDriving(on) {
   S.driving = on; S.follow = true;
   $("btn-drive").setAttribute("aria-pressed", on);
+  $("app").classList.toggle("driving", on);
   if (on) {
     toast("Drive mode on. I'll warn you about wildlife ahead.");
     say("Drive mode on.");
@@ -526,7 +531,9 @@ async function start() {
   });
 
   buildSheet();
-  $("btn-report").addEventListener("click", openReportSheet);
+  $("btn-report").addEventListener("click", openAddReport);
+  $("btn-report-side").addEventListener("click", openAddReport);
+  $("report-dead-animal").addEventListener("click", () => { $("add-report-sheet").close(); openReportSheet(); });
   $("pick-cancel").addEventListener("click", () => { S.pickSpecies = null; $("pick-banner").hidden = true; });
   $("btn-locate").addEventListener("click", () => {
     S.follow = true;

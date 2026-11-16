@@ -106,6 +106,11 @@ body { background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font); }
 .legend { margin: 4px 0 0; display: grid; gap: 4px; font-size: 0.82rem; color: var(--muted); }
 .legend i { display: inline-block; width: 22px; height: 5px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
 
+/* Report button for drive mode (yellow, like the road warning sign) */
+.round-btn.report-side { width: 56px; height: 56px; background: var(--accent); color: var(--on-accent); }
+.round-btn.report-side svg { width: 28px; height: 28px; }
+#app.driving .bottom { display: none; }
+
 /* Bottom */
 .bottom {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 1000;
@@ -156,66 +161,6 @@ body { background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font); }
   display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 58px; border-radius: 22px;
   background: var(--tile); color: var(--fg); font: 600 1rem var(--font); border: 0; cursor: pointer;
 }
-.link-btn { color: var(--on-accent); }
-
-/* Side buttons */
-.side-buttons {
-  position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 150px);
-  display: flex; flex-direction: column; gap: 10px; z-index: 1000;
-}
-.round-btn {
-  width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--surface); color: var(--fg);
-  box-shadow: var(--shadow); display: grid; place-items: center; cursor: pointer;
-}
-.round-btn svg { width: 24px; height: 24px; fill: currentColor; stroke: currentColor; }
-.round-btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
-
-.layers-panel {
-  position: absolute; right: 70px; bottom: calc(env(safe-area-inset-bottom, 0px) + 160px); z-index: 1000;
-  background: var(--surface); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow);
-  display: grid; gap: 8px; min-width: 190px;
-}
-.layers-panel label { display: flex; gap: 8px; align-items: center; font-weight: 600; }
-.legend { margin: 4px 0 0; display: grid; gap: 4px; font-size: 0.82rem; color: var(--muted); }
-.legend i { display: inline-block; width: 22px; height: 5px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
-
-/* Bottom */
-.bottom {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1000;
-  padding: 0 max(12px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 14px) max(12px, env(safe-area-inset-left, 0px));
-  display: grid; gap: 8px; justify-items: center; pointer-events: none;
-}
-.report-btn {
-  pointer-events: auto; width: min(100%, 460px); min-height: 56px; border: 2px solid var(--on-accent);
-  border-radius: 14px; background: var(--accent); color: var(--on-accent);
-  font: 800 1.1rem var(--font); box-shadow: var(--shadow); cursor: pointer;
-}
-.toast {
-  pointer-events: auto; background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 999px;
-  font-weight: 600; font-size: 0.9rem; max-width: 460px; text-align: center; box-shadow: var(--shadow);
-}
-
-/* Report sheet */
-.sheet {
-  border: 0; padding: 0; width: 100%; max-width: 520px; margin: auto auto 0; border-radius: 18px 18px 0 0;
-  background: var(--surface); color: var(--fg); max-height: 88vh;
-}
-.sheet::backdrop { background: rgba(0, 0, 0, 0.35); }
-.sheet-inner { padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 18px); display: grid; gap: 12px; }
-.sheet-head { display: flex; justify-content: space-between; align-items: center; }
-.sheet-head h2 { margin: 0; font-size: 1.2rem; }
-.sheet-where { margin: -6px 0 0; color: var(--muted); font-size: 0.88rem; }
-.quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.animal-btn {
-  min-height: 64px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg);
-  font: 700 0.9rem var(--font); cursor: pointer; padding: 6px 4px; display: grid; place-items: center; gap: 2px;
-}
-.animal-btn .emoji { font-size: 1.4rem; line-height: 1; }
-.animal-btn:hover { border-color: var(--accent); }
-.all-animals summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
-.group-title { margin: 10px 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.all-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.all-grid .animal-btn { min-height: 44px; }
 .link-btn { background: none; border: 0; color: var(--fg); font: 700 0.92rem var(--font); text-decoration: underline; cursor: pointer; padding: 6px; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
