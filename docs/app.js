@@ -361,7 +361,7 @@ function addPin(id, ll, props, mine = false) {
 
 // ---- Reporting ----------------------------------------------------------------
 function buildSheet() {
-  const btn = s => `<button type="button" class="animal-btn" data-species="${s.id}"><span class="emoji" aria-hidden="true">${s.emoji}</span>${esc(s.name)}</button>`;
+  const btn = s => `<button type="button" class="animal-btn" data-species="${s.id}"><span class="dot" aria-hidden="true">${s.emoji}</span><span>${esc(s.name)}</span></button>`;
   $("quick-grid").innerHTML = QUICK.map(id => btn(BY_ID[id])).join("");
   const groups = [...new Set(SPECIES.map(s => s.group))];
   $("all-list").innerHTML = groups.map(g => `<div class="group-title">${esc(g)}</div><div class="all-grid">${SPECIES.filter(s => s.group === g).map(btn).join("")}</div>`).join("");

@@ -3,6 +3,7 @@
   --surface: #ffffff;
   --fg: #17201a;
   --muted: #5a675e;
+  --tile: #eef3f0; --chip: #e4ebe7;
   --line: #d6ddd5;
   --accent: #e9a400;
   --on-accent: #1b1400;
@@ -16,7 +17,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e1310; --surface: #18201a; --fg: #e6ece7; --muted: #9aa89e; --line: #2c372f;
+    --bg: #0e1310; --surface: #18201a; --fg: #e6ece7; --muted: #9aa89e; --line: #2c372f; --tile: #242e26; --chip: #2c372f;
     --shadow: 0 2px 12px rgba(0, 0, 0, 0.5); color-scheme: dark;
   }
 }
@@ -83,6 +84,79 @@ body { background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font); }
   display: flex; justify-content: space-between; align-items: center; font-weight: 700; box-shadow: var(--shadow);
 }
 .pick-banner .link-btn { color: var(--on-accent); }
+
+/* Side buttons */
+.side-buttons {
+  position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 150px);
+  display: flex; flex-direction: column; gap: 10px; z-index: 1000;
+}
+.round-btn {
+  width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--surface); color: var(--fg);
+  box-shadow: var(--shadow); display: grid; place-items: center; cursor: pointer;
+}
+.round-btn svg { width: 24px; height: 24px; fill: currentColor; stroke: currentColor; }
+.round-btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+
+.layers-panel {
+  position: absolute; right: 70px; bottom: calc(env(safe-area-inset-bottom, 0px) + 160px); z-index: 1000;
+  background: var(--surface); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow);
+  display: grid; gap: 8px; min-width: 190px;
+}
+.layers-panel label { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.legend { margin: 4px 0 0; display: grid; gap: 4px; font-size: 0.82rem; color: var(--muted); }
+.legend i { display: inline-block; width: 22px; height: 5px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+
+/* Bottom */
+.bottom {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1000;
+  padding: 0 max(12px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 14px) max(12px, env(safe-area-inset-left, 0px));
+  display: grid; gap: 8px; justify-items: center; pointer-events: none;
+}
+.report-btn {
+  pointer-events: auto; width: min(100%, 460px); min-height: 56px; border: 2px solid var(--on-accent);
+  border-radius: 14px; background: var(--accent); color: var(--on-accent);
+  font: 800 1.1rem var(--font); box-shadow: var(--shadow); cursor: pointer;
+}
+.toast {
+  pointer-events: auto; background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 999px;
+  font-weight: 600; font-size: 0.9rem; max-width: 460px; text-align: center; box-shadow: var(--shadow);
+}
+
+/* Report sheet (styled like the Google Maps "Add a report" sheet) */
+.sheet {
+  border: 0; padding: 0; width: 100%; max-width: 520px; margin: auto auto 0; border-radius: 28px 28px 0 0;
+  background: var(--surface); color: var(--fg); max-height: 92vh;
+}
+.sheet::backdrop { background: rgba(0, 0, 0, 0.35); }
+.sheet-inner { padding: 22px 16px calc(env(safe-area-inset-bottom, 0px) + 22px); display: grid; gap: 14px; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 4px; }
+.sheet-head h2 { margin: 0; font-size: 1.45rem; font-weight: 500; letter-spacing: -0.01em; }
+.close-x {
+  width: 46px; height: 46px; flex: none; border-radius: 50%; border: 0; background: var(--chip);
+  color: var(--fg); display: grid; place-items: center; cursor: pointer;
+}
+.close-x svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2.4; fill: none; }
+.sheet-where { margin: -8px 4px 0; color: var(--muted); font-size: 0.9rem; }
+.quick-grid, .all-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.animal-btn {
+  min-height: 150px; border-radius: 22px; border: 0; background: var(--tile); color: var(--fg);
+  font: 600 1.02rem var(--font); cursor: pointer; padding: 18px 10px 16px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+}
+.animal-btn:active { transform: scale(0.98); }
+.animal-btn .dot {
+  width: 74px; height: 74px; border-radius: 50%; background: var(--accent); color: var(--on-accent);
+  display: grid; place-items: center; font-size: 2.1rem; line-height: 1;
+}
+.all-grid .animal-btn { min-height: 118px; font-size: 0.95rem; }
+.all-grid .animal-btn .dot { width: 56px; height: 56px; font-size: 1.6rem; }
+.all-animals summary { cursor: pointer; font-weight: 600; padding: 8px 4px; list-style: none; }
+.group-title { margin: 14px 4px 8px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.pick-row {
+  display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 58px; border-radius: 22px;
+  background: var(--tile); color: var(--fg); font: 600 1rem var(--font); border: 0; cursor: pointer;
+}
+.link-btn { color: var(--on-accent); }
 
 /* Side buttons */
 .side-buttons {

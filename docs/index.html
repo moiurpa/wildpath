@@ -74,8 +74,8 @@
 <dialog id="report-sheet" class="sheet" aria-labelledby="sheet-title">
   <form method="dialog" class="sheet-inner">
     <div class="sheet-head">
-      <h2 id="sheet-title">What animal?</h2>
-      <button value="cancel" class="link-btn">Close</button>
+      <h2 id="sheet-title">Report a dead animal</h2>
+      <button value="cancel" class="close-x" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
     </div>
     <p id="sheet-where" class="sheet-where"></p>
     <div id="quick-grid" class="quick-grid"></div>
@@ -83,7 +83,7 @@
       <summary>All animals</summary>
       <div id="all-list"></div>
     </details>
-    <button type="button" id="pick-on-map" class="link-btn">Put the pin somewhere else on the map</button>
+    <button type="button" id="pick-on-map" class="pick-row">Put the pin somewhere else on the map</button>
   </form>
 </dialog>
 
