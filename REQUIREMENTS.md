@@ -50,7 +50,7 @@ Last checked: 16 Nov 2026, on the live site https://moiurpa.github.io/wildpath/ 
 |---|---|---|
 | Website online at a permanent address | ✅ | https://moiurpa.github.io/wildpath/ |
 | Shared database of reports online | ❌ | Server built (22 tests pass) but not hosted. Options: Oracle free server, Firestore, Supabase. |
-| Install on the phone home screen, works offline (PWA) | ❌ | No app manifest or offline support yet. |
+| Install on the phone home screen, works offline (PWA) | 🟡 | Live: app icon, manifest and offline support load in Chrome. Not yet installed on a real phone. |
 | Phone app | 🟡 | Website works in a phone browser. Native iPhone app written, not built. |
 | Turn-by-turn directions | 🟡 | iPhone app hands off to Google Maps; not in the website. |
 | Spanish | ❌ | |
