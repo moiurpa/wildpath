@@ -306,6 +306,43 @@ function updateRiskChip() {
   $("risk-status").textContent = `${monthName} ${period}: ${LEVELS[top.level].toLowerCase()} risk for ${GROUP_LABEL[top.group]}`;
 }
 
+// ---- Shared database ----------------------------------------------------------
+// With supabaseUrl and supabaseKey in config.js, reports go to Supabase (always on).
+// Without them, the app talks to the Python server at v1/ (same answers).
+const SB = CFG.supabaseUrl && CFG.supabaseKey ? { url: CFG.supabaseUrl.replace(/\/$/, ""), key: CFG.supabaseKey } : null;
+
+async function sbRpc(name, args) {
+  const res = await fetch(`${SB.url}/rest/v1/rpc/${name}`, {
+    method: "POST", headers: { "Content-Type": "application/json", apikey: SB.key }, body: JSON.stringify(args),
+  });
+  if (!res.ok) throw new Error(`server ${res.status}`);
+  return res.json();
+}
+const bboxArgs = bbox => { const [a, b, c, d] = bbox.split(",").map(Number); return { min_lon: a, min_lat: b, max_lon: c, max_lat: d }; };
+
+const api = {
+  async upload(reports) {
+    reports = reports.map(r => ({ ...r, period: r.period || periodAt(r.latitude, r.longitude, new Date(r.observedAt)) }));
+    if (SB) return sbRpc("submit_reports", { reporter_id: reporterId(), app_version: "web-0.2", reports });
+    const res = await fetch("v1/reports", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reporterID: reporterId(), appVersion: "web-0.2", reports }) });
+    if (!res.ok) throw new Error(`server ${res.status}`);
+    return res.json();
+  },
+  async reports(bbox, days) {
+    if (SB) return sbRpc("reports_in_bbox", { ...bboxArgs(bbox), days });
+    const res = await fetch(`v1/reports?bbox=${bbox}&days=${days}`);
+    if (!res.ok) throw new Error(`server ${res.status}`);
+    return res.json();
+  },
+  async hotspots(bbox, minCount) {
+    if (SB) return sbRpc("hotspots_in_bbox", { ...bboxArgs(bbox), min_count: minCount });
+    const res = await fetch(`v1/hotspots?bbox=${bbox}&min_count=${minCount}`);
+    if (!res.ok) throw new Error(`server ${res.status}`);
+    return res.json();
+  },
+};
+
 // ---- Reports: load and show pins --------------------------------------------
 function reportBbox() {
   const b = S.map.bounds(); if (!b) return null;
@@ -318,9 +355,7 @@ function reportBbox() {
 async function loadReports() {
   const bbox = reportBbox(); if (!bbox) return;
   try {
-    const res = await fetch(`v1/reports?bbox=${bbox}&days=30`);
-    if (!res.ok) { enterDemoMode(); return; }
-    const geo = await res.json();
+    const geo = await api.reports(bbox, 30);
     S.hadServer = true;
     const seen = new Set();
     for (const f of geo.features) {
@@ -329,7 +364,7 @@ async function loadReports() {
       addPin(id, [f.geometry.coordinates[1], f.geometry.coordinates[0]], f.properties);
     }
     for (const [id, pin] of S.pins) if (!seen.has(id) && !pin.mine) { pin.handle.remove(); S.pins.delete(id); }
-    const hs = await (await fetch(`v1/hotspots?bbox=${bbox}&min_count=3`)).json();
+    const hs = await api.hotspots(bbox, 3);
     S.community = hs.cells || [];
     S.communityShapes.forEach(s => s.remove());
     S.communityShapes = S.layers.reports ? S.community.map(c => S.map.circle(c.center, 300, { color: "#c42f1c", fillOpacity: 0.16 })) : [];
@@ -406,12 +441,7 @@ async function submitReport(species, ll, gps = {}) {
   const name = BY_ID[species].name;
   const handle = addPin(report.id.toLowerCase(), ll, { species, observedAt: report.observedAt }, true);
   try {
-    const res = await fetch("v1/reports", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reporterID: reporterId(), appVersion: "web-0.1", reports: [report] }),
-    });
-    if (!res.ok) throw new Error(`server ${res.status}`);
-    const [result] = (await res.json()).results;
+    const [result] = (await api.upload([report])).results;
     if (result.status === "accepted") { toast(`${name} reported. Thank you.`); say(`${name} reported.`); }
     else if (result.status === "duplicate") toast(`Someone already reported this ${name.toLowerCase()}. Counted once.`);
     else if (result.status === "rejected") { toast(`Not saved: ${result.reason.replaceAll("_", " ")}.`); handle.remove(); S.pins.delete(report.id.toLowerCase()); }
@@ -427,9 +457,8 @@ async function flushPending() {
   if (S.demo) return;
   const queue = store.get("wp.pending", []); if (!queue.length) return;
   try {
-    const res = await fetch("v1/reports", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reporterID: reporterId(), appVersion: "web-0.1", reports: queue }) });
-    if (res.ok) { store.set("wp.pending", []); toast(`${queue.length} saved report${queue.length === 1 ? "" : "s"} uploaded.`); }
+    await api.upload(queue);
+    store.set("wp.pending", []); toast(`${queue.length} saved report${queue.length === 1 ? "" : "s"} uploaded.`);
   } catch { /* still offline */ }
 }
 
