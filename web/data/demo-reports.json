@@ -1,0 +1,44 @@
+{
+ "center": [
+  44.97065,
+  -72.52441
+ ],
+ "reports": [
+  {
+   "species": "raccoon",
+   "latitude": 44.97065,
+   "longitude": -72.52441,
+   "minutesAgo": 12
+  },
+  {
+   "species": "deer",
+   "latitude": 44.98047,
+   "longitude": -72.51829,
+   "minutesAgo": 55
+  },
+  {
+   "species": "skunk",
+   "latitude": 44.98169,
+   "longitude": -72.51311,
+   "minutesAgo": 140
+  },
+  {
+   "species": "squirrel",
+   "latitude": 44.98209,
+   "longitude": -72.51311,
+   "minutesAgo": 300
+  },
+  {
+   "species": "porcupine",
+   "latitude": 44.98169,
+   "longitude": -72.51311,
+   "minutesAgo": 600
+  },
+  {
+   "species": "raccoon",
+   "latitude": 44.98209,
+   "longitude": -72.51311,
+   "minutesAgo": 1500
+  }
+ ]
+}

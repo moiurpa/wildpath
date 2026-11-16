@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- CarPlay "driving task" category. Works in the Simulator now; on a real
+	     iPhone it only signs after Apple grants this entitlement to your account. -->
+	<key>com.apple.developer.carplay-driving-task</key>
+	<true/>
+</dict>
+</plist>

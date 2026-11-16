@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e9a400">
+<title>WildPath</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="sign" aria-hidden="true">!</span>
+      <span class="brand-name">WildPath</span>
+    </div>
+    <form id="search" class="search" role="search">
+      <label for="search-input" class="visually-hidden">Search a town or address</label>
+      <input id="search-input" type="search" placeholder="Search a town or address" autocomplete="off">
+    </form>
+  </header>
+
+  <div class="statusbar">
+    <span id="gps-status" class="chip">Finding your location…</span>
+    <span id="risk-status" class="chip"></span>
+    <button type="button" id="demo-chip" class="chip demo" hidden>Demo mode · tap to see sample animals</button>
+  </div>
+
+  <div id="warning" class="warning" hidden role="alert">
+    <div class="warning-sign" aria-hidden="true">!</div>
+    <div>
+      <div id="warning-title" class="warning-title"></div>
+      <div id="warning-detail" class="warning-detail"></div>
+    </div>
+  </div>
+
+  <div id="pick-banner" class="pick-banner" hidden>
+    <span id="pick-text">Tap the map where the animal is</span>
+    <button type="button" id="pick-cancel" class="link-btn">Cancel</button>
+  </div>
+
+  <main id="map" aria-label="Map"></main>
+
+  <div class="side-buttons">
+    <button type="button" id="btn-locate" class="round-btn" aria-label="Show my location" title="Show my location">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-width="2" fill="none"/><circle cx="12" cy="12" r="8" fill="none" stroke-width="2"/></svg>
+    </button>
+    <button type="button" id="btn-layers" class="round-btn" aria-label="Map layers" title="Map layers" aria-expanded="false">
+      <svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="m2 13 10 5 10-5" fill="none" stroke-width="2"/></svg>
+    </button>
+    <button type="button" id="btn-drive" class="round-btn" aria-pressed="false" aria-label="Drive mode" title="Drive mode">
+      <svg viewBox="0 0 24 24"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11v6h-2v2h-2v-2H9v2H7v-2H5v-6Zm2.2-1h9.6l-1-3H8.2l-1 3ZM7.5 15a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>
+    </button>
+  </div>
+
+  <div id="layers-panel" class="layers-panel" hidden>
+    <label><input type="checkbox" id="layer-hotspots" checked> Risky roads</label>
+    <label><input type="checkbox" id="layer-reports" checked> Animal reports</label>
+    <label><input type="checkbox" id="layer-voice" checked> Spoken warnings</label>
+    <p class="legend">
+      <span><i style="background:var(--risk-mod)"></i>Moderate</span>
+      <span><i style="background:var(--risk-high)"></i>High</span>
+      <span><i style="background:var(--risk-vhigh)"></i>Very high</span>
+    </p>
+  </div>
+
+  <div class="bottom">
+    <div id="toast" class="toast" hidden role="status"></div>
+    <button type="button" id="btn-report" class="report-btn">Report a dead animal</button>
+  </div>
+</div>
+
+<dialog id="report-sheet" class="sheet" aria-labelledby="sheet-title">
+  <form method="dialog" class="sheet-inner">
+    <div class="sheet-head">
+      <h2 id="sheet-title">What animal?</h2>
+      <button value="cancel" class="link-btn">Close</button>
+    </div>
+    <p id="sheet-where" class="sheet-where"></p>
+    <div id="quick-grid" class="quick-grid"></div>
+    <details class="all-animals">
+      <summary>All animals</summary>
+      <div id="all-list"></div>
+    </details>
+    <button type="button" id="pick-on-map" class="link-btn">Put the pin somewhere else on the map</button>
+  </form>
+</dialog>
+
+<script src="config.js"></script>
+<script src="vendor/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

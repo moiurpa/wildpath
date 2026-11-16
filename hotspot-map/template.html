@@ -1,0 +1,558 @@
+<title>Vermont Wildlife Road Risk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@500;700;800&family=Overpass+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+/*__LEAFLET_CSS__*/
+</style>
+<style>
+/* Layout: control strip over a road map with a side panel; the roads are the picture.
+   Look: highway signage, amber like a deer-crossing sign, on forest-tinted neutrals. */
+:root {
+  --bg: #f3f5f1;
+  --surface: #ffffff;
+  --map: #e7ece5;
+  --fg: #17201a;
+  --muted: #59665d;
+  --line: #d6ddd5;
+  --accent: #e9a400;
+  --accent-ink: #855600;
+  --on-accent: #1b1400;
+  --risk-low: #a7b8ad;
+  --risk-mod: #e3b21f;
+  --risk-high: #df7718;
+  --risk-vhigh: #c42f1c;
+  --report: #1d4ed8;
+  --font-display: "Overpass", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "Overpass Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1310; --surface: #151c17; --map: #111813; --fg: #e5ebe6; --muted: #97a59b;
+    --line: #29332c; --accent: #f2b705; --accent-ink: #f2b705; --on-accent: #1b1400;
+    --risk-low: #3c5344; --risk-mod: #d8a81b; --risk-high: #f08a2e; --risk-vhigh: #ff5b3e;
+    --report: #6ea0ff; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1310; --surface: #151c17; --map: #111813; --fg: #e5ebe6; --muted: #97a59b;
+  --line: #29332c; --accent: #f2b705; --accent-ink: #f2b705; --on-accent: #1b1400;
+  --risk-low: #3c5344; --risk-mod: #d8a81b; --risk-high: #f08a2e; --risk-vhigh: #ff5b3e;
+  --report: #6ea0ff; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+}
+.wrap {
+  max-width: 1280px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+  display: grid; gap: 18px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 800; letter-spacing: -0.01em; line-height: 1.1; }
+h2 { font-size: 1.05rem; font-weight: 700; }
+h3 { font-size: 0.95rem; font-weight: 700; }
+p { margin: 0; }
+.eyebrow {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.75rem;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink);
+}
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+header { display: grid; gap: 6px; }
+header p { max-width: 68ch; color: var(--muted); }
+
+/* Status: the one loud element, shaped like a diamond warning sign's message */
+.status {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 16px;
+}
+.sign {
+  width: 42px; height: 42px; flex: none; transform: rotate(45deg);
+  background: var(--accent); border: 2px solid var(--on-accent); border-radius: 5px;
+  display: grid; place-items: center;
+}
+.sign svg { transform: rotate(-45deg); width: 24px; height: 24px; fill: var(--on-accent); }
+.status-text { min-width: 0; flex: 1 1 260px; }
+.status-text strong { font-family: var(--font-display); font-size: 1.1rem; }
+.pill {
+  display: inline-block; padding: 1px 10px; border-radius: 999px;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.85rem;
+  letter-spacing: 0.04em; text-transform: uppercase; color: #fff; vertical-align: 1px;
+}
+.pill[data-level="0"] { background: var(--risk-low); color: var(--fg); }
+.pill[data-level="1"] { background: var(--risk-mod); color: #1b1400; }
+.pill[data-level="2"] { background: var(--risk-high); color: #1b1000; }
+.pill[data-level="3"] { background: var(--risk-vhigh); color: #fff; }
+
+/* Controls */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: end; }
+.field { display: grid; gap: 4px; }
+.field > span {
+  font-family: var(--font-display); font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted);
+}
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button {
+  font: 600 0.9rem var(--font-body); color: var(--fg); background: transparent;
+  border: 0; padding: 7px 12px; cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+select, .btn {
+  font: 600 0.9rem var(--font-body); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; cursor: pointer;
+}
+.btn:hover, .seg button:hover:not([aria-pressed="true"]) { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Map + panel */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+#map {
+  height: min(78vh, 760px); min-height: 380px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--map);
+}
+.leaflet-container { background: var(--map); font-family: var(--font-body); }
+.leaflet-bar a { background: var(--surface); color: var(--fg); border-bottom-color: var(--line); }
+.leaflet-bar a:hover { background: var(--bg); }
+.leaflet-bar { border-color: var(--line) !important; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface); color: var(--fg); }
+.leaflet-popup-content { margin: 12px 14px; font-size: 0.9rem; line-height: 1.45; }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+.pop-title { font-family: var(--font-display); font-weight: 800; font-size: 1rem; }
+
+aside { display: grid; gap: 14px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.legend { display: grid; gap: 6px; }
+.legend-row { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; font-size: 0.88rem; }
+.swatch { height: 0; border-top-style: solid; border-radius: 2px; }
+.note { font-size: 0.82rem; color: var(--muted); }
+
+.chart svg { width: 100%; height: auto; display: block; }
+.chart .bar { fill: var(--risk-low); }
+.chart .bar.on { fill: var(--accent); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart text { fill: var(--muted); font-family: var(--font-data); font-size: 10px; }
+.chart text.on { fill: var(--fg); font-weight: 600; }
+
+.times { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.time {
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px; text-align: center;
+  display: grid; gap: 2px;
+}
+.time b { font-family: var(--font-display); font-size: 0.85rem; }
+.time span { font-family: var(--font-data); font-size: 0.8rem; color: var(--muted); }
+.time.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+
+.stretches { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; }
+.stretches button {
+  width: 100%; text-align: left; background: transparent; border: 0; color: var(--fg);
+  padding: 7px 6px; border-radius: 6px; cursor: pointer;
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+}
+.stretches button:hover { background: var(--bg); }
+.stretches .rname { font-family: var(--font-display); font-weight: 700; }
+.stretches .rmeta { grid-column: 1 / -1; font-family: var(--font-data); font-size: 0.78rem; color: var(--muted); }
+.stretches .rmiles { font-family: var(--font-data); font-size: 0.85rem; }
+
+.about { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; align-items: start; }
+.panel { align-content: start; }
+.about .panel p, .about .panel li { font-size: 0.9rem; }
+.about ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.about a { color: var(--accent-ink); }
+.factors { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.factors th, .factors td { padding: 3px 4px; text-align: right; border-bottom: 1px solid var(--line); }
+.factors th:first-child, .factors td:first-child { text-align: left; }
+.table-scroll { overflow-x: auto; }
+input[type="file"] { font: 0.85rem var(--font-body); color: var(--muted); max-width: 100%; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">WildPath · Phase 1 · Vermont state highways</span>
+    <h1>Vermont Wildlife Road Risk</h1>
+    <p>Where animals are most likely to cross Vermont's state highways, from deer and moose to raccoons, skunks and squirrels, adjusted for the season and the time of day. Pick an animal, a month and a time to see how the risk changes.</p>
+  </header>
+
+  <section class="status" aria-live="polite">
+    <div class="sign" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7.5 2.5c.6 1 .6 2 .2 2.8l1.6.8c.7-.9 1.8-1.3 2.9-1.3.5-1.2 1.3-2 2.3-2.3-.2 1-.1 1.8.4 2.4l1.2-.4c-.1 1.1-.7 1.9-1.6 2.3l.4 1.6 2.6 1.4c.4.2.5.7.3 1.1l-.4.6c-.2.4-.7.5-1.1.3l-1.9-.9c-.3 1.6-.9 3-1.9 4.1l.6 5.6h-1.6l-.8-4.7-2.9.3-.6 4.4H7.6l.4-5.4c-1.1-1-1.6-2.4-1.6-4 0-1.2.4-2.3 1-3.1L5.8 5.9C5.9 4.6 6.5 3.4 7.5 2.5z"/></svg></div>
+    <div class="status-text">
+      <div><strong id="status-head">Loading…</strong></div>
+      <div class="muted" id="status-sub"></div>
+    </div>
+  </section>
+
+  <section class="controls" aria-label="Map settings">
+    <div class="field"><span>Animal</span>
+      <div class="seg" id="species" role="group" aria-label="Animal">
+        <button type="button" data-v="deer" aria-pressed="true">Deer</button>
+        <button type="button" data-v="moose" aria-pressed="false">Moose</button>
+        <button type="button" data-v="small" aria-pressed="false">Small animals</button>
+      </div>
+    </div>
+    <label class="field" for="month"><span>Month</span>
+      <select id="month"></select>
+    </label>
+    <div class="field"><span>Time of day</span>
+      <div class="seg" id="period" role="group" aria-label="Time of day">
+        <button type="button" data-v="dawn" aria-pressed="false">Dawn</button>
+        <button type="button" data-v="day" aria-pressed="false">Day</button>
+        <button type="button" data-v="dusk" aria-pressed="false">Dusk</button>
+        <button type="button" data-v="night" aria-pressed="false">Night</button>
+      </div>
+    </div>
+    <div class="field"><span>&nbsp;</span>
+      <button type="button" class="btn" id="now">Right now in Vermont</button>
+    </div>
+  </section>
+
+  <div class="main">
+    <div id="map" role="region" aria-label="Map of Vermont state highways colored by wildlife risk"></div>
+
+    <aside>
+      <div class="panel">
+        <h2>Risk level</h2>
+        <div class="legend" id="legend"></div>
+        <p class="note">Tap a road for its details. Thicker, redder lines mean higher estimated risk.</p>
+      </div>
+
+      <div class="panel chart">
+        <h2 id="season-title">Seasonal pattern</h2>
+        <div id="season-chart"></div>
+        <p class="note" id="season-note"></p>
+      </div>
+
+      <div class="panel">
+        <h2>Time of day</h2>
+        <div class="times" id="times"></div>
+        <p class="note" id="sun-note"></p>
+      </div>
+
+      <div class="panel">
+        <h2>Longest high-crossing stretches</h2>
+        <ol class="stretches" id="stretches"></ol>
+        <p class="note">Continuous stretches scored 8.5 or higher (out of 9). Tap one to zoom in.</p>
+      </div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="panel">
+      <h2>How the risk is estimated</h2>
+      <p><b>Risk = where × when.</b> “Where” is the state's Wildlife Crossing Value for each road segment: <span class="mono" id="score-range"></span>, higher means wildlife crosses there more. “When” multiplies that by a seasonal factor and a time-of-day factor for the animal you pick.</p>
+      <div class="table-scroll">
+        <table class="factors" id="factors"></table>
+      </div>
+      <p class="note">The seasonal and time factors are estimates from published patterns, not Vermont crash counts: deer peak during the November rut (Vermont Fish &amp; Wildlife) and at dawn and dusk; Maine DOT reports moose collisions peak in May and June. Small animals such as raccoons, skunks and opossums are mostly active at night. They will be replaced with Vermont data.</p>
+    </div>
+    <div class="panel">
+      <h2>What this map does not show yet</h2>
+      <ul>
+        <li>Actual crashes or roadkill reports. This is a prediction from habitat, not a record of hits.</li>
+        <li>Traffic volume. A busy road with the same score is riskier; VTrans traffic counts come next.</li>
+        <li>Town roads. The state data covers Interstates, US and VT routes only (<span class="mono" id="miles"></span> road miles).</li>
+      </ul>
+      <p class="note">Source: <a href="https://geodata.vermont.gov" target="_blank" rel="noopener">Vermont Open Geodata Portal</a>, VT Wildlife Crossing Value, Vermont Agency of Natural Resources.</p>
+    </div>
+    <div class="panel">
+      <h2>Add reports from the WildPath app</h2>
+      <p>Load a <span class="mono">reports.json</span> file exported from the WildPath iPhone app to pin reported animals on this map. The file stays in your browser.</p>
+      <label for="reports-file" class="note">Reports file</label>
+      <input type="file" id="reports-file" accept=".json,application/json">
+      <p class="note" id="reports-status">No reports loaded.</p>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+const DATA = /*__DATA__*/null;
+
+// ---- Model ---------------------------------------------------------------
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+// Relative risk by month (1 = an average month). Estimated shapes, see the page text.
+const SEASON = {
+  deer:  [0.6, 0.5, 0.5, 0.6, 0.9, 1.0, 0.7, 0.7, 0.9, 1.5, 2.0, 1.2],
+  moose: [0.5, 0.4, 0.4, 0.6, 1.6, 1.8, 1.2, 0.9, 1.0, 1.1, 0.9, 0.6],
+  // Raccoons, skunks, squirrels, porcupines and others: no seasonal estimate yet.
+  small: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+};
+const SPECIES_LABEL = { deer: "Deer", moose: "Moose", small: "Small animal" };
+const SPECIES_ROW = { deer: "Deer", moose: "Moose", small: "Small animals" };
+const SPECIES_PLURAL = { deer: "deer", moose: "moose", small: "raccoons, skunks and other small animals" };
+// Relative risk by time of day (1 = daytime).
+const TIME = {
+  deer:  { dawn: 3, day: 1, dusk: 4, night: 2 },
+  moose: { dawn: 3, day: 1, dusk: 3, night: 3 },
+  small: { dawn: 2, day: 1, dusk: 3, night: 3 },
+};
+const PERIODS = ["dawn", "day", "dusk", "night"];
+const PERIOD_LABEL = { dawn: "Dawn", day: "Day", dusk: "Dusk", night: "Night" };
+const LEVELS = ["Low", "Moderate", "High", "Very high"];
+const THRESHOLDS = [0.2, 0.4, 0.7];
+const WEIGHTS = [1.1, 1.8, 2.7, 3.6];
+
+function riskValue(score, species, month, period) {
+  const base = 0.3 + 0.7 * (score - 5) / 4;
+  const s = SEASON[species][month] / Math.max(...SEASON[species]);
+  const t = TIME[species][period] / Math.max(...Object.values(TIME[species]));
+  return base * s * t;
+}
+function levelOf(v) {
+  let l = 0;
+  while (l < THRESHOLDS.length && v >= THRESHOLDS[l]) l++;
+  return l;
+}
+
+// ---- Sun and Vermont time ------------------------------------------------
+const VT_LAT = 44.0, VT_LON = -72.7, TZ = "America/New_York";
+
+function vtToday() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ, year: "numeric", month: "numeric", day: "numeric",
+  }).formatToParts(new Date()).map(p => [p.type, p.value]));
+  return { year: +parts.year, month: +parts.month - 1, day: +parts.day };
+}
+// NOAA approximation; returns sunrise and sunset in minutes after 00:00 UTC.
+function sunTimesUTC(year, month, day) {
+  const rad = Math.PI / 180;
+  const n = Math.round((Date.UTC(year, month, day) - Date.UTC(year, 0, 0)) / 864e5);
+  const g = 2 * Math.PI / 365 * (n - 1);
+  const eqt = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
+    - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g)
+    - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g)
+    - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const ha = Math.acos(Math.cos(90.833 * rad) / (Math.cos(VT_LAT * rad) * Math.cos(decl))
+    - Math.tan(VT_LAT * rad) * Math.tan(decl)) / rad;
+  return { rise: 720 - 4 * (VT_LON + ha) - eqt, set: 720 - 4 * (VT_LON - ha) - eqt };
+}
+function fmtUTCmin(year, month, day, min) {
+  return new Date(Date.UTC(year, month, day) + min * 60000)
+    .toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
+}
+function signedDiff(a, b) { return ((a - b + 720) % 1440 + 1440) % 1440 - 720; }
+function periodAt(nowMin, sun) {
+  if (Math.abs(signedDiff(nowMin, sun.rise)) <= 60) return "dawn";
+  if (Math.abs(signedDiff(nowMin, sun.set)) <= 60) return "dusk";
+  if (signedDiff(nowMin, sun.rise) > 60 && signedDiff(nowMin, sun.set) < -60) return "day";
+  return "night";
+}
+function currentVermont() {
+  const t = vtToday();
+  const now = new Date();
+  const sun = sunTimesUTC(t.year, t.month, t.day);
+  return { month: t.month, period: periodAt(now.getUTCHours() * 60 + now.getUTCMinutes(), sun) };
+}
+
+// ---- State ---------------------------------------------------------------
+const state = { species: "deer", ...currentVermont(), isNow: true };
+
+// ---- Colors from theme tokens --------------------------------------------
+let COLORS = [];
+function readColors() {
+  const cs = getComputedStyle(document.documentElement);
+  COLORS = ["--risk-low", "--risk-mod", "--risk-high", "--risk-vhigh"].map(v => cs.getPropertyValue(v).trim());
+  COLORS.report = cs.getPropertyValue("--report").trim();
+}
+
+// ---- Map -----------------------------------------------------------------
+const map = L.map("map", { preferCanvas: true, zoomSnap: 0.25, attributionControl: false, minZoom: 7 });
+map.fitBounds([[42.72, -73.44], [45.02, -71.46]]);
+const renderer = L.canvas({ tolerance: 6 });
+
+function decode(arr) {
+  const pts = []; let lat = 0, lon = 0;
+  for (let i = 0; i < arr.length; i += 2) { lat += arr[i]; lon += arr[i + 1]; pts.push([lat / 1e5, lon / 1e5]); }
+  return pts;
+}
+
+const segs = DATA.segments.map(([score, ri, fmm, tmm, lines]) => {
+  const layer = L.polyline(lines.map(decode), { renderer, weight: 1, color: "#999", lineCap: "round" });
+  const seg = { score, route: DATA.routes[ri], fmm, tmm, layer, level: -1 };
+  layer.on("click", e => {
+    const v = riskValue(seg.score, state.species, state.month, state.period);
+    const l = levelOf(v);
+    L.popup().setLatLng(e.latlng).setContent(
+      `<div class="pop-title">${seg.route}</div>
+       <div class="mono">Mile ${seg.fmm.toFixed(2)} to ${seg.tmm.toFixed(2)}</div>
+       <div>Crossing value: <b class="mono">${seg.score.toFixed(1)}</b> of 9</div>
+       <div>${SPECIES_LABEL[state.species]} risk, ${MONTHS[state.month]} ${PERIOD_LABEL[state.period].toLowerCase()}:
+       <span class="pill" data-level="${l}">${LEVELS[l]}</span></div>`
+    ).openOn(map);
+  });
+  layer.addTo(map);
+  return seg;
+});
+
+function cap(s) { return s[0].toUpperCase() + s.slice(1); }
+
+function restyle() {
+  const top = [];
+  for (const seg of segs) {
+    const l = levelOf(riskValue(seg.score, state.species, state.month, state.period));
+    if (l !== seg.level || seg.forceColor) {
+      seg.level = l;
+      seg.layer.setStyle({ color: COLORS[l], weight: WEIGHTS[l], opacity: l === 0 ? 0.9 : 1 });
+    }
+    if (l >= 2) top.push(seg);
+  }
+  top.sort((a, b) => a.level - b.level).forEach(s => s.layer.bringToFront());
+  reportLayer.eachLayer(m => m.bringToFront && m.bringToFront());
+}
+
+// ---- Panels --------------------------------------------------------------
+const $ = id => document.getElementById(id);
+
+function renderControls() {
+  document.querySelectorAll("#species button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === state.species));
+  document.querySelectorAll("#period button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === state.period));
+  $("month").value = state.month;
+  $("now").setAttribute("aria-pressed", state.isNow);
+}
+
+function renderStatus() {
+  const lvl = levelOf(riskValue(8, state.species, state.month, state.period));
+  const when = `${MONTHS[state.month]}, ${PERIOD_LABEL[state.period].toLowerCase()}`;
+  $("status-head").innerHTML = `${state.isNow ? "Right now: " : ""}${SPECIES_LABEL[state.species]} risk is
+    <span class="pill" data-level="${lvl}">${LEVELS[lvl]}</span> on high-crossing roads`;
+  const why = [];
+  const s = SEASON[state.species][state.month];
+  if (state.species === "deer" && (state.month === 9 || state.month === 10)) why.push("deer breeding season (the rut) has deer moving and crossing roads");
+  else if (state.species === "moose" && (state.month === 4 || state.month === 5)) why.push("late spring is peak moose movement");
+  else if (s < 0.7) why.push(`${MONTHS[state.month]} is a quieter month`);
+  if (state.species === "small" && (state.period === "night" || state.period === "dusk")) why.push("raccoons, skunks and opossums are mostly out at night");
+  else if (state.period === "dusk" || state.period === "dawn") why.push(`${state.period} is when ${SPECIES_PLURAL[state.species]} move most`);
+  if (state.period === "night" && state.species === "moose") why.push("moose are dark and hard to see at night");
+  $("status-sub").textContent = `${when}${state.isNow ? " in Vermont" : ""}. ${why.length ? cap(why.join("; ")) + "." : ""}`;
+}
+
+function renderLegend() {
+  $("legend").innerHTML = LEVELS.map((name, i) =>
+    `<div class="legend-row"><span class="swatch" style="border-top-width:${Math.max(2, WEIGHTS[i] + 1)}px;border-top-color:var(${["--risk-low","--risk-mod","--risk-high","--risk-vhigh"][i]})"></span><span>${name}</span></div>`
+  ).join("");
+}
+
+function renderSeason() {
+  const vals = SEASON[state.species];
+  const W = 360, H = 140, padL = 26, padB = 20, padT = 8, maxV = 2;
+  const bw = (W - padL) / 12;
+  const y = v => padT + (H - padT - padB) * (1 - v / maxV);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Estimated ${SPECIES_PLURAL[state.species]} risk by month">`;
+  for (const g of [1, 2]) {
+    svg += `<line class="grid" x1="${padL}" x2="${W}" y1="${y(g)}" y2="${y(g)}"/>`;
+    svg += `<text x="${padL - 4}" y="${y(g) + 3}" text-anchor="end">×${g}</text>`;
+  }
+  vals.forEach((v, i) => {
+    const on = i === state.month ? " on" : "";
+    const x = padL + i * bw + 3;
+    svg += `<rect class="bar${on}" x="${x}" y="${y(v)}" width="${bw - 6}" height="${y(0) - y(v)}" rx="2"/>`;
+    svg += `<text class="${on.trim()}" x="${x + (bw - 6) / 2}" y="${H - 6}" text-anchor="middle">${MONTHS[i][0]}</text>`;
+  });
+  svg += `<line class="grid" x1="${padL}" x2="${W}" y1="${y(0)}" y2="${y(0)}"/></svg>`;
+  $("season-chart").innerHTML = svg;
+  $("season-title").textContent = `${SPECIES_ROW[state.species]}: seasonal pattern`;
+  $("season-note").textContent = state.species === "small"
+    ? "No seasonal estimate for small animals yet, so every month shows ×1. Real reports will fill this in."
+    : `Estimated risk by month; ×1 is an average month. ${MONTHS[state.month]}: ×${vals[state.month]}.`;
+}
+
+function renderTimes() {
+  const t = TIME[state.species];
+  $("times").innerHTML = PERIODS.map(p =>
+    `<div class="time${p === state.period ? " on" : ""}"><b>${PERIOD_LABEL[p]}</b><span>×${t[p]}</span></div>`
+  ).join("");
+  const year = vtToday().year;
+  const sun = sunTimesUTC(year, state.month, 15);
+  $("sun-note").textContent = `Mid-${MONTHS[state.month]} in central Vermont: sunrise ${fmtUTCmin(year, state.month, 15, sun.rise)}, sunset ${fmtUTCmin(year, state.month, 15, sun.set)}. Dawn and dusk are the hour either side.`;
+}
+
+function renderStretches() {
+  $("stretches").innerHTML = DATA.topStretches.map((s, i) =>
+    `<li><button type="button" data-i="${i}">
+      <span class="rname">${s.name}</span><span class="rmiles">${s.miles.toFixed(1)} mi</span>
+      <span class="rmeta">mile ${s.fromMM.toFixed(1)}–${s.toMM.toFixed(1)} · avg score ${s.avgScore.toFixed(1)}</span>
+    </button></li>`
+  ).join("");
+}
+$("stretches").addEventListener("click", e => {
+  const b = e.target.closest("button[data-i]");
+  if (!b) return;
+  const s = DATA.topStretches[+b.dataset.i];
+  map.fitBounds(s.bounds, { padding: [40, 40], maxZoom: 13 });
+  $("map").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+});
+
+function renderFactors() {
+  let h = `<tr><th>Animal</th>${MONTHS.map(m => `<th>${m.slice(0, 3)}</th>`).join("")}</tr>`;
+  for (const sp of ["deer", "moose", "small"]) h += `<tr><td>${SPECIES_ROW[sp]}</td>${SEASON[sp].map(v => `<td class="mono">${v}</td>`).join("")}</tr>`;
+  h += `<tr><th>Time</th>${PERIODS.map(p => `<th colspan="3">${PERIOD_LABEL[p]}</th>`).join("")}</tr>`;
+  for (const sp of ["deer", "moose", "small"]) h += `<tr><td>${SPECIES_ROW[sp]}</td>${PERIODS.map(p => `<td class="mono" colspan="3">×${TIME[sp][p]}</td>`).join("")}</tr>`;
+  $("factors").innerHTML = h;
+  $("score-range").textContent = `${DATA.scoreMin} to ${DATA.scoreMax}`;
+  $("miles").textContent = Math.round(DATA.totalMiles).toLocaleString();
+}
+
+function render() { renderControls(); renderStatus(); renderSeason(); renderTimes(); restyle(); }
+
+// ---- Controls ------------------------------------------------------------
+$("month").innerHTML = MONTHS.map((m, i) => `<option value="${i}">${m}</option>`).join("");
+$("species").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.species = b.dataset.v; render();
+});
+$("period").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.period = b.dataset.v; state.isNow = false; render();
+});
+$("month").addEventListener("change", e => { state.month = +e.target.value; state.isNow = false; render(); });
+$("now").addEventListener("click", () => { Object.assign(state, currentVermont(), { isNow: true }); render(); });
+
+// ---- Reports from the app ------------------------------------------------
+const reportLayer = L.layerGroup().addTo(map);
+$("reports-file").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const list = Array.isArray(parsed) ? parsed : (parsed.reports || []);
+    reportLayer.clearLayers();
+    let n = 0;
+    for (const r of list) {
+      if (typeof r.latitude !== "number" || typeof r.longitude !== "number") continue;
+      L.circleMarker([r.latitude, r.longitude], {
+        renderer, radius: 6, color: "#fff", weight: 2, fillColor: COLORS.report, fillOpacity: 1,
+      }).bindPopup(`<div class="pop-title">${cap(String(r.species || "animal").replace(/([A-Z])/g, " $1").toLowerCase())}</div>
+        <div class="mono">${r.observedAt ? new Date(r.observedAt).toLocaleString("en-US", { timeZone: TZ }) : ""}</div>`).addTo(reportLayer);
+      n++;
+    }
+    $("reports-status").textContent = n
+      ? `${n} report${n === 1 ? "" : "s"} pinned in blue.`
+      : "That file has no reports with a location.";
+  } catch {
+    $("reports-status").textContent = "That file isn't a WildPath reports file. Choose the reports.json exported from the app.";
+  }
+});
+
+// ---- Theme changes -------------------------------------------------------
+function onTheme() { readColors(); segs.forEach(s => s.level = -1); restyle(); }
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", onTheme);
+new MutationObserver(onTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+readColors();
+renderLegend();
+renderStretches();
+renderFactors();
+render();
+</script>
