@@ -567,17 +567,34 @@ function showWarning(w) {
   clearTimeout(warnTimer); warnTimer = setTimeout(() => ($("warning").hidden = true), 12000);
 }
 
-// ---- Weather: frogs and salamanders on wet nights --------------------------------
-// Spring "Big Nights" (Mar-May, after dark, 40 F or warmer, rain) and summer/fall
-// wet nights (Jun-Oct, after dark, rain, 50 F or warmer in summer). Same rules as
-// model/wildpath_risk.py. Weather from Open-Meteo (free, no key); the location
-// sent is rounded to about 1 km, and only while drive mode is on.
-function amphibianWeather(month, tempC, rain3h, dark) {
-  if (tempC == null || !dark) return null;
-  const wet = rain3h >= 0.5;
-  if (month >= 3 && month <= 5) return tempC < 4.4 ? null : wet ? "big_night" : null;
-  const minT = { 6: 10, 7: 10, 8: 10, 9: 4.4, 10: 4.4 }[month];
-  return minT != null && wet && tempC >= minT ? "wet_night" : null;
+// ---- Weather alerts for each kind of animal ------------------------------------------
+// Same rules as model/wildpath_risk.py (sources there). Weather from Open-Meteo
+// (free, no key); the location sent is rounded to about 1 km, and only while
+// drive mode is on. Each alert plays at most once a day.
+function weatherAlerts(month, w) {
+  const out = [], t = w.tempC, dark = w.dark;
+  const wet = w.rain3h >= 0.5;
+  if (t != null && dark && wet) {
+    if (month >= 3 && month <= 5 && t >= 4.4) out.push({ key: "frogs", icon: "🐸",
+      title: "Big Night: frogs and salamanders crossing", detail: "Warm spring rain after dark · slow down near ponds and wetlands",
+      spoken: "Big night. Frogs and salamanders are crossing roads. Please slow down near wetlands." });
+    else if ({ 6: 10, 7: 10, 8: 10, 9: 4.4, 10: 4.4 }[month] <= t) out.push({ key: "frogs", icon: "🐸",
+      title: "Rainy night: frogs on the road", detail: "Warm and wet after dark · slow down near ponds, wetlands and streams",
+      spoken: "Rainy night. Frogs may be on the road. Please slow down near wetlands." });
+  }
+  if (t != null && !dark && month >= 5 && month <= 7 && t >= 20 && w.rain24h >= 1) out.push({ key: "turtles", icon: "🐢",
+    title: "Turtles crossing to nest today", detail: "Warm day after rain · watch road edges near ponds and rivers",
+    spoken: "Warm day after rain. Turtles may be crossing to nest. Watch the road edges near water." });
+  if (dark && month >= 5 && month <= 10 && w.tempMax >= 20) out.push({ key: "snakes", icon: "🐍",
+    title: "Snakes on warm roads tonight", detail: "Pavement stays warm after a warm day",
+    spoken: "Warm evening. Snakes may be lying on the road." });
+  if (w.snowCm >= 25) out.push({ key: "deer-snow", icon: "🦌",
+    title: "Deep snow: deer using the roads", detail: "Deer travel plowed roads and can get trapped by snowbanks",
+    spoken: "Deep snow. Deer may be walking on the road." });
+  if (w.snowCm >= 10) out.push({ key: "owls", icon: "🦉",
+    title: "Snow cover: owls hunting roadsides", detail: "Owls fly low over road edges · slow down at dusk and night",
+    spoken: "Snow on the ground. Owls may fly low across the road." });
+  return out;
 }
 
 async function checkWeather() {
@@ -585,20 +602,21 @@ async function checkWeather() {
   try {
     const [lat, lon] = p.ll.map(v => v.toFixed(2));
     const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      "&current=temperature_2m,is_day&hourly=precipitation&past_hours=3&forecast_hours=1&timezone=UTC");
+      "&current=temperature_2m,is_day&hourly=precipitation,snow_depth&past_hours=24&forecast_hours=1" +
+      "&daily=temperature_2m_max&forecast_days=1&timezone=auto");
     if (!res.ok) return;
     const d = await res.json();
-    const rain = (d.hourly?.precipitation || []).slice(0, 3).reduce((s, v) => s + (v || 0), 0);
-    const kind = amphibianWeather(new Date().getMonth() + 1, d.current?.temperature_2m, rain, d.current?.is_day === 0);
-    S.weather = { tempC: d.current?.temperature_2m, rain, kind };
-    if (!kind) return;
-    const tonight = new Date().toDateString();
-    if (store.get("wp.frogWarned", "") === tonight) return;
-    store.set("wp.frogWarned", tonight);
-    showWarning({ icon: "🐸", dist: "",
-      title: kind === "big_night" ? "Big Night: frogs and salamanders crossing" : "Rainy night: frogs on the road",
-      detail: "Warm and wet after dark · slow down near ponds, wetlands and streams",
-      spoken: "Rainy night. Frogs and salamanders may be on the road. Please slow down near wetlands." });
+    const rain = (d.hourly?.precipitation || []).slice(0, 24).map(v => v || 0);
+    const snow = (d.hourly?.snow_depth || []).slice(0, 24).filter(v => v != null);
+    const w = { tempC: d.current?.temperature_2m, tempMax: d.daily?.temperature_2m_max?.[0], dark: d.current?.is_day === 0,
+      rain3h: rain.slice(-3).reduce((s, v) => s + v, 0), rain24h: rain.reduce((s, v) => s + v, 0),
+      snowCm: snow.length ? snow[snow.length - 1] * 100 : 0 };
+    S.weather = w;
+    const today = new Date().toDateString(), done = store.get("wp.weatherWarned", {});
+    const alert = weatherAlerts(new Date().getMonth() + 1, w).find(x => done[x.key] !== today);
+    if (!alert) return;
+    done[alert.key] = today; store.set("wp.weatherWarned", done);
+    showWarning({ ...alert, dist: "" });
   } catch { /* no weather right now */ }
 }
 
